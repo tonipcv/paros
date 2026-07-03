@@ -1,0 +1,25 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# next
+.next
+/out
+/build
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# misc
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+*.log
+npm-debug.log*
+
+# local data
+.data
+.wrangler

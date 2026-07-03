@@ -1,0 +1,180 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg: 8 8 8;
+  --surface: 17 17 17;
+  --border: 26 26 26;
+  --muted: 138 138 138;
+  --silver: 163 163 163;
+  --accent: 212 212 212;
+  --accentHover: 245 245 245;
+  --accentDark: 115 115 115;
+  --highlight: 245 245 245;
+  --primary: 245 245 245;
+  --secondary: 163 163 163;
+  --tertiary: 138 138 138;
+  --borderHover: 138 138 138;
+  --bgHover: 13 13 13;
+  --bgActive: 26 26 26;
+  --bgCard: 17 17 17;
+  --sidebar: 8 8 8;
+  --sidebarHover: 17 17 17;
+  --sidebarText: 163 163 163;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: 255 255 255;
+    --surface: 247 247 248;
+    --border: 229 229 231;
+    --muted: 142 142 142;
+    --silver: 103 103 103;
+    --accent: 52 52 52;
+    --accentHover: 13 13 13;
+    --accentDark: 120 120 120;
+    --highlight: 13 13 13;
+    --primary: 13 13 13;
+    --secondary: 75 75 75;
+    --tertiary: 155 155 155;
+    --borderHover: 180 180 180;
+    --bgHover: 244 244 244;
+    --bgActive: 236 236 236;
+    --bgCard: 255 255 255;
+    --sidebar: 249 249 249;
+    --sidebarHover: 236 236 236;
+    --sidebarText: 75 75 75;
+  }
+}
+
+@layer base {
+  * { @apply box-border; }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply m-0 bg-bgPage font-sans text-[13px] text-secondary antialiased;
+    background: rgb(var(--bg));
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button, input, textarea, select { font: inherit; }
+  ::placeholder { @apply text-tertiary; }
+  ::selection {
+    background: rgb(var(--primary) / 0.15);
+    color: rgb(var(--primary));
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--borderHover));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-btn px-4 text-xs font-medium
+           bg-highlight text-bg
+           hover:opacity-90
+           transition-all duration-150 ease-out
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-btn px-4 text-xs font-medium
+           bg-transparent border border-borderDefault text-secondary
+           hover:border-borderHover hover:text-primary
+           transition-all duration-150 ease-out;
+  }
+  .btn-ghost {
+    @apply inline-flex h-8 items-center justify-center gap-2 rounded-btn px-3 text-xs font-medium
+           bg-transparent text-secondary
+           hover:bg-bgHover hover:text-primary
+           transition-all duration-150 ease-out;
+  }
+  .btn-danger {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-btn px-4 text-xs font-medium
+           bg-danger text-white
+           hover:bg-red-600 active:bg-red-700
+           transition-all duration-150 ease-out
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .input {
+    @apply w-full h-9 rounded-btn border border-borderDefault bg-bgPage px-3 text-sm text-primary
+           outline-none transition-all duration-150 ease-out
+           placeholder:text-tertiary
+           focus:border-borderHover focus:ring-0;
+  }
+
+  .card {
+    @apply rounded-card border border-borderDefault bg-bgCard shadow-card;
+  }
+
+  .stat-card {
+    @apply rounded-card bg-bgCard border border-borderDefault p-5
+           hover:shadow-card-hover transition-shadow duration-200;
+  }
+
+  .panel {
+    @apply rounded-card border border-borderDefault bg-bgCard shadow-card;
+  }
+
+  .muted-pill {
+    @apply inline-flex items-center gap-1.5 rounded-btn border border-borderDefault bg-bgCard px-2.5 py-1 text-[11px] font-medium text-secondary;
+  }
+
+  .label {
+    @apply text-caption font-medium text-secondary mb-1.5 block;
+  }
+
+  .skeleton {
+    @apply rounded bg-bgActive animate-pulse;
+  }
+}
+
+@layer utilities {
+  .text-grad,
+  .text-grad-light,
+  .text-grad-subtle,
+  .text-grad-h,
+  .text-grad-stat {
+    background: linear-gradient(180deg, rgb(var(--primary)) 0%, rgb(var(--accent)) 60%, rgb(var(--silver)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .text-grad,
+  .text-grad-light,
+  .text-grad-subtle,
+  .text-grad-h,
+  .text-grad-stat {
+    background: none;
+    -webkit-text-fill-color: rgb(var(--primary));
+    color: rgb(var(--primary));
+  }
+}
+
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(180deg, rgb(var(--primary) / 0.12), rgb(var(--primary) / 0.04));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
