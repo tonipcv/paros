@@ -81,6 +81,17 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <button
+          onClick={async () => {
+            const res = await fetch("/api/guest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ turnstileToken }) });
+            if (res.ok) router.replace("/chat");
+            else toast.error((await res.json().catch(() => ({}))).error || "Could not start guest session");
+          }}
+          className="mt-3 flex h-11 w-full items-center justify-center rounded-lg border border-border text-sm font-medium text-silver transition-colors hover:border-borderHover hover:text-primary"
+        >
+          Continue as guest — no account
+        </button>
+
         <p className="mt-6 text-center text-xs text-muted">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="font-medium text-primary hover:underline">Create one</Link>

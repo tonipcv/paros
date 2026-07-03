@@ -1,5 +1,19 @@
+import { randomUUID } from "node:crypto";
 import { prisma } from "./prisma";
 import { hashPassword } from "./auth";
+
+export async function createGuestUser() {
+  const email = `guest_${randomUUID()}@guest.local`;
+  return prisma.user.create({
+    data: {
+      email,
+      name: "Guest",
+      role: "USER",
+      workspace: { create: { name: "Guest workspace", plan: "FREE", credits: 40 } },
+    },
+    include: { workspace: true },
+  });
+}
 
 export async function createUserWithWorkspace(data: {
   name: string;

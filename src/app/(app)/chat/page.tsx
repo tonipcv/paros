@@ -172,7 +172,12 @@ export default function ChatPage() {
         convo.messages.map(async (m: any) => {
           if (m.encrypted && m.iv) {
             try {
-              return { ...m, content: await decryptText(encKey, m.iv, m.content) };
+              const dec = await decryptText(encKey, m.iv, m.content);
+              try {
+                const p = JSON.parse(dec);
+                if (p && typeof p.c === "string") return { ...m, content: p.c, attachments: p.a || [] };
+              } catch {}
+              return { ...m, content: dec };
             } catch {
               return { ...m, content: "[unable to decrypt]" };
             }
@@ -381,14 +386,17 @@ export default function ChatPage() {
       id = (await res.json()).conversation.id;
       setActiveId(id);
     }
-    const [u, a] = await Promise.all([encryptText(encKey, userMsg.content), encryptText(encKey, assistantMsg.content)]);
+    // Encrypt BOTH text and attachments (images/files) as a single blob — the server never sees them.
+    const userPayload = JSON.stringify({ c: userMsg.content, a: userMsg.attachments || [] });
+    const asstPayload = JSON.stringify({ c: assistantMsg.content, a: [] });
+    const [u, a] = await Promise.all([encryptText(encKey, userPayload), encryptText(encKey, asstPayload)]);
     await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         conversationId: id,
         items: [
-          { role: "user", iv: u.iv, ct: u.ct, attachments: userMsg.attachments || [] },
+          { role: "user", iv: u.iv, ct: u.ct },
           { role: "assistant", iv: a.iv, ct: a.ct, model },
         ],
       }),

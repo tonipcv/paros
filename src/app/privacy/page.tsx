@@ -75,6 +75,28 @@ export default function PrivacyPage() {
         </section>
 
         <section className="mt-10">
+          <h2 className="text-h2 text-primary">Transparency</h2>
+          <div className="card mt-3 p-5 text-[13px] text-muted">
+            <p>As of {new Date().toISOString().slice(0, 10)}:</p>
+            <ul className="mt-2 space-y-1.5">
+              <li>— We have not received any government request for user data.</li>
+              <li>— We have not been compelled to hand over encryption keys (we do not hold them).</li>
+              <li>— We do not have backdoors in our software.</li>
+              <li>— Our client is open source and independently verifiable.</li>
+            </ul>
+            <p className="mt-3 text-tertiary">This canary is reviewed periodically. Absence of this statement in future versions should be treated as a warning.</p>
+          </div>
+        </section>
+
+        <section className="mt-10">
+          <h2 className="text-h2 text-primary">Metadata</h2>
+          <p className="mt-2 text-sm text-muted">
+            We minimize metadata: we do not log IP addresses against your activity, we send a no-referrer policy,
+            enforce a strict Content-Security-Policy, and keep sessions scoped to your device.
+          </p>
+        </section>
+
+        <section className="mt-10">
           <h2 className="text-h2 text-primary">Inference</h2>
           <p className="mt-2 text-sm text-muted">
             Prompts are forwarded to model providers only to generate a response, then discarded. We disable
