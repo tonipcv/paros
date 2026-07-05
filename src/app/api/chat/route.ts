@@ -2,8 +2,9 @@ import { requireUser } from "@/lib/auth";
 import { getWorkspaceForUser, chargeCredits } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { error } from "@/lib/http";
-import { streamChat, hasOpenRouter, type ChatMessage, type ContentPart } from "@/lib/openrouter";
+import { streamChat, streamChatTo, hasOpenRouter, type ChatMessage, type ContentPart } from "@/lib/openrouter";
 import { findChatModel } from "@/lib/models";
+import { type PrivacyMode, isTeeOrE2ee, hasTeeProvider, endpoints } from "@/lib/privacy-router";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,9 @@ export async function POST(request: Request) {
   const ephemeral = Boolean(body.ephemeral);
   const encrypted = Boolean(body.encrypted);
   const skipStore = ephemeral || encrypted;
+  const privacyMode: PrivacyMode = ["anonymous", "private", "tee", "e2ee"].includes(body.privacyMode)
+    ? body.privacyMode
+    : "private";
   if (!content && !images.length && !documents.length) return error("content or attachment required");
 
   const model = findChatModel(modelId);
@@ -119,7 +123,16 @@ export async function POST(request: Request) {
             await new Promise((r) => setTimeout(r, 12));
           }
         } else {
-          const respBody = await streamChat(model.id, history, { temperature });
+          let respBody: ReadableStream;
+          if (isTeeOrE2ee(privacyMode) && hasTeeProvider()) {
+            const ep = endpoints()[privacyMode];
+            if (!ep) throw new Error("TEE provider not configured");
+            // Map to model IDs the TEE provider understands (strip duplicate prefixes)
+            const teeModel = model.id.replace(/^(openrouter|teeprovider)\//, "");
+            respBody = await streamChatTo(teeModel, history, ep.baseUrl, ep.apiKey, { temperature });
+          } else {
+            respBody = await streamChat(model.id, history, { temperature });
+          }
           const reader = respBody.getReader();
           const decoder = new TextDecoder();
           let buffer = "";

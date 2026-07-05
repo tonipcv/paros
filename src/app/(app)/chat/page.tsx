@@ -20,6 +20,9 @@ import {
   Lock,
   HardDrive,
   Cloud,
+  ShieldCheck,
+  EyeOff,
+  ShieldClose,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
@@ -41,6 +44,7 @@ type Msg = { id: string; role: string; content: string; attachments?: Attachment
 type Convo = { id: string; title: string; model: string; updatedAt: string | number; encrypted?: boolean; titleIv?: string | null; displayTitle?: string };
 type DocFile = { name: string; text: string; chars: number };
 type StorageMode = "local" | "cloud";
+type PrivacyMode = "anonymous" | "private" | "tee" | "e2ee";
 
 export default function ChatPage() {
   const { chatModels, loadModels, load, workspace, encKey, unlock } = useAppStore();
@@ -53,6 +57,7 @@ export default function ChatPage() {
   const [streaming, setStreaming] = useState(false);
   const [modelOpen, setModelOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const [attachments, setAttachments] = useState<string[]>([]);
   const [documents, setDocuments] = useState<DocFile[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -64,6 +69,7 @@ export default function ChatPage() {
   const [unlockPass, setUnlockPass] = useState("");
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [privacyMode, setPrivacyMode] = useState<PrivacyMode>("private");
   const [voice, setVoice] = useState("alloy");
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -308,6 +314,7 @@ export default function ChatPage() {
           images: sendingImages,
           documents: sendingDocs.map((d) => ({ name: d.name, text: d.text })),
           ephemeral: true,
+          privacyMode,
           temperature,
           systemPrompt,
           history: priorHistory,
@@ -601,6 +608,59 @@ export default function ChatPage() {
             </button>
             <div className="relative">
               <button
+                onClick={() => { setPrivacyOpen((v) => !v); setModelOpen(false); setSettingsOpen(false); }}
+                className={`flex items-center gap-1.5 rounded-btn border px-2.5 py-1.5 text-[12px] font-medium transition ${
+                  privacyMode !== "private"
+                    ? "border-highlight bg-highlight text-bg"
+                    : "border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
+                }`}
+              >
+                {privacyMode === "anonymous" && <EyeOff size={14} />}
+                {privacyMode === "private" && <ShieldCheck size={14} />}
+                {privacyMode === "tee" && <Lock size={14} />}
+                {privacyMode === "e2ee" && <ShieldClose size={14} />}
+                {privacyMode.charAt(0).toUpperCase() + privacyMode.slice(1)}
+                <ChevronDown size={12} className="text-muted" />
+              </button>
+              {privacyOpen && (
+                <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-card border border-borderDefault bg-surface p-1.5 shadow-card-hover">
+                  {(["anonymous", "private", "tee", "e2ee"] as PrivacyMode[]).map((m) => {
+                    const labels: Record<PrivacyMode, { icon: any; desc: string; disabled?: boolean }> = {
+                      anonymous: { icon: EyeOff, desc: "Frontier models. Identity hidden. Provider may retain." },
+                      private: { icon: ShieldCheck, desc: "Zero-retention by contract. Default." },
+                      tee: { icon: Lock, desc: "Hardware-isolated GPU enclave (Phala)." },
+                      e2ee: { icon: ShieldClose, desc: "Encrypted on device, decrypted in TEE only." },
+                    };
+                    const info = labels[m];
+                    const Icon = info.icon;
+                    const disabled =
+                      (m === "tee" || m === "e2ee") && false; // set true if TEE provider not configured
+                    return (
+                      <button
+                        key={m}
+                        onClick={() => {
+                          if (disabled) return;
+                          setPrivacyMode(m);
+                          setPrivacyOpen(false);
+                        }}
+                        disabled={disabled}
+                        className={`flex w-full items-start gap-2 rounded-lg px-3 py-2.5 text-left transition ${
+                          privacyMode === m ? "bg-bgActive" : "hover:bg-bgHover"
+                        } ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
+                      >
+                        <Icon size={15} className={`mt-0.5 shrink-0 ${m === privacyMode ? "text-primary" : "text-tertiary"}`} />
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium text-primary capitalize">{m}</p>
+                          <p className="mt-0.5 text-[11px] leading-tight text-muted">{info.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="relative">
+              <button
                 onClick={() => setSettingsOpen((v) => !v)}
                 className="grid h-8 w-8 place-items-center rounded-btn border border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
               >
@@ -650,6 +710,13 @@ export default function ChatPage() {
             {temporary && (
               <div className="mb-4 flex items-center justify-center gap-2 rounded-btn border border-borderDefault bg-surface px-3 py-2 text-[12px] text-muted">
                 <MessageSquareOff size={13} /> Temporary chat — this conversation will not be saved.
+              </div>
+            )}
+            {!temporary && privacyMode !== "private" && (
+              <div className="mb-4 flex items-center justify-center gap-2 rounded-btn border border-borderDefault bg-surface px-3 py-2 text-[12px] text-muted">
+                {privacyMode === "anonymous" && <><EyeOff size={13} /> Anonymous mode — provider may retain prompts.</>}
+                {privacyMode === "tee" && <><Lock size={13} /> TEE mode — hardware-isolated GPU enclave.</>}
+                {privacyMode === "e2ee" && <><ShieldClose size={13} /> E2EE mode — encrypted on device, decrypted in TEE.</>}
               </div>
             )}
             {messages.length === 0 ? (
