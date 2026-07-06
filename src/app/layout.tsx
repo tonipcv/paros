@@ -7,8 +7,8 @@ const appName = "KRX";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://krx.ai"),
   title: {
-    default: `${appName} | Private AI Infrastructure`,
-    template: `%s | ${appName}`,
+    default: `${appName}: Private AI Infrastructure`,
+    template: `%s: ${appName}`,
   },
   description:
     "KRX is a private AI workspace for chat, images, video, audio, code, and OpenAI-compatible API access with privacy-first routing.",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   creator: "KRX",
   publisher: "KRX",
   openGraph: {
-    title: `${appName} | Private AI Infrastructure`,
+    title: `${appName}: Private AI Infrastructure`,
     description:
       "Private multimodal AI for work that should remain yours. Chat, create, automate, and build with privacy-first routing.",
     siteName: appName,
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: `${appName} | Private AI Infrastructure`,
+    title: `${appName}: Private AI Infrastructure`,
     description: "Private multimodal AI for confidential work.",
     images: ["/logo.png"],
   },
