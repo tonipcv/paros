@@ -14,20 +14,23 @@ export async function POST(request: Request) {
     const body = await request.json();
     const plan = PLANS.find((p) => p.id === body.plan && p.priceEnv);
     if (!plan) return error("Invalid plan");
-    const priceId = process.env[plan.priceEnv!];
-    if (!priceId) return error(`Price id ${plan.priceEnv} não configurado`, 503);
+    const billingCycle = body.billingCycle === "yearly" ? "yearly" : "monthly";
+    const priceEnv = billingCycle === "yearly" ? `${plan.priceEnv}_YEARLY` : plan.priceEnv!;
+    const priceId = process.env[priceEnv];
+    if (!priceId) return error(`Price id ${priceEnv} não configurado`, 503);
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3014";
     const session = await stripe().checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
       customer_email: user.email,
-      metadata: { workspaceId: ws.id, plan: plan.id },
+      metadata: { workspaceId: ws.id, plan: plan.id, billingCycle },
       success_url: `${appUrl}/billing?success=1`,
       cancel_url: `${appUrl}/billing?canceled=1`,
     });
     return json({ url: session.url });
-  } catch (e: any) {
-    return error(e.message, 500);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Checkout failed";
+    return error(message, 500);
   }
 }

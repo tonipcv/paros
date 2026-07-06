@@ -830,7 +830,7 @@ export default function ChatPage() {
                   }
                 }}
                 rows={1}
-                placeholder={recording ? "Listening…" : "Message HTPS.io…"}
+                placeholder={recording ? "Listening..." : "Message KRX..."}
                 className="max-h-44 min-h-[28px] w-full resize-none bg-transparent px-2 py-2 text-[15px] text-primary outline-none placeholder:text-tertiary"
               />
               <div className="flex items-center justify-between px-1">
@@ -884,7 +884,7 @@ export default function ChatPage() {
               </div>
             </div>
             <p className="mt-2 text-center text-[11px] text-tertiary">
-              {activeModel?.name} · {storageMode === "local" ? "Private — stored on your device" : "Encrypted sync"} · HTPS.io can make mistakes.
+              {activeModel?.name} · {storageMode === "local" ? "Private - stored on your device" : "Encrypted sync"} · KRX can make mistakes.
             </p>
           </div>
         </div>

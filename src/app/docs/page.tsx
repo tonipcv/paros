@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const appName = process.env.NEXT_PUBLIC_APP_NAME || "HTPS.io";
+const appName = "KRX";
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3012";
 
 function Code({ children }: { children: string }) {

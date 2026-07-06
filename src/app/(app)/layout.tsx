@@ -18,7 +18,7 @@ import {
 import { useAppStore } from "@/store/useAppStore";
 import { initials } from "@/lib/ui-helpers";
 
-const appName = process.env.NEXT_PUBLIC_APP_NAME || "Nebula AI";
+const appName = "KRX";
 
 const nav = [
   { to: "/chat", label: "Chat", icon: MessageSquare },
