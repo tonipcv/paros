@@ -136,7 +136,7 @@ export const IMAGE_MODELS = [
 
 export const PLANS = [
   { id: "FREE", name: "Free", price: 0, credits: 10, features: ["10 credits/mo", "Base chat models", "Local storage only"] },
-  { id: "STARTER", name: "Starter", price: 9, credits: 100, priceEnv: "STRIPE_PRICE_STARTER", priceEnvYearly: "STRIPE_PRICE_STARTER_YEARLY", features: ["100 credits/mo", "All chat models", "Image generation", "API access"] },
-  { id: "PRO", name: "Pro", price: 29, credits: 500, priceEnv: "STRIPE_PRICE_PRO", priceEnvYearly: "STRIPE_PRICE_PRO_YEARLY", features: ["500 credits/mo", "Priority inference", "Uncensored models", "Higher rate limits"] },
-  { id: "MAX", name: "Max", price: 99, credits: 2500, priceEnv: "STRIPE_PRICE_MAX", priceEnvYearly: "STRIPE_PRICE_MAX_YEARLY", features: ["2,500 credits/mo", "Dedicated throughput", "Early access models", "Priority support"] },
+  { id: "STARTER", name: "Pro", price: 18, credits: 100, priceEnv: "STRIPE_PRICE_STARTER", priceEnvYearly: "STRIPE_PRICE_STARTER_YEARLY", features: ["100 credits/mo", "All chat models", "Image generation", "API access"] },
+  { id: "PRO", name: "Pro+", price: 68, credits: 500, priceEnv: "STRIPE_PRICE_PRO", priceEnvYearly: "STRIPE_PRICE_PRO_YEARLY", features: ["500 credits/mo", "Priority inference", "Uncensored models", "Higher rate limits"] },
+  { id: "MAX", name: "Max", price: 200, credits: 2500, priceEnv: "STRIPE_PRICE_MAX", priceEnvYearly: "STRIPE_PRICE_MAX_YEARLY", features: ["2,500 credits/mo", "Dedicated throughput", "Early access models", "Priority support"] },
 ];

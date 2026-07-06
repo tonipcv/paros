@@ -9,51 +9,52 @@ const plans = [
   {
     id: "STARTER",
     name: "Pro",
-    monthly: "$14.40",
-    yearly: "$138.24",
-    desc: "Full access to private AI models and everyday creative features.",
+    monthly: "$18",
+    yearly: "$194.40",
+    desc: "Your private AI studio - every model, every medium, no limits.",
     cta: "Get Pro",
     features: [
       "All Pro and Advanced models",
       "Unlimited text prompts",
       "1,000 images per day",
-      "100 credits per month",
-      "Image upscaling and background removal",
+      "Generate video, music, and use frontier image and text models with credits",
+      "Image superpowers: upscale, remove backgrounds, create variants, and more",
       "Character creation",
+      "Extended context windows for deep work and longer conversations",
+      "Encrypted chat backup and restore",
+      "100 credits / month for video, music, premium models, and API",
       "API access",
     ],
   },
   {
     id: "PRO",
     name: "Pro+",
-    monthly: "$54.40",
-    yearly: "$522.24",
-    desc: "Everything in Pro, with significantly more credits and higher limits.",
+    monthly: "$68",
+    yearly: "$734.40",
+    desc: "Everything in Pro, scaled for serious creators and users.",
     cta: "Get Pro+",
     popular: true,
     features: [
       "Everything in Pro",
-      "7,500 credits per month",
-      "Higher image generation limits",
+      "Higher image generation limits on Venice Pro models",
+      "7,500 credits / month for video, music, frontier image generation, LLMs, and API",
       "2-month credit banking",
-      "Video and premium model access",
-      "Higher API limits",
+      "Annual billing discount",
     ],
   },
   {
     id: "MAX",
     name: "Max",
-    monthly: "$160",
-    yearly: "$1,536",
-    desc: "Maximum capacity for heavy creators, builders, and private power users.",
+    monthly: "$200",
+    yearly: "$2,160",
+    desc: "Everything in Plus - for the ultimate access to Venice power users.",
     cta: "Get Max",
     features: [
       "Everything in Pro+",
-      "22,500 credits per month",
-      "Highest generation limits",
+      "Highest image generation limits on Venice Pro models",
+      "22,500 credits / month for video, music, frontier image generation, frontier LLMs, and API",
       "3-month credit banking",
-      "Priority support",
-      "Highest API limits",
+      "Annual billing discount",
     ],
   },
 ];
@@ -95,7 +96,7 @@ export function LandingPricing() {
             Simple pricing. No surprises.
           </h2>
           <p className="mt-4 text-[15px] leading-7 text-[var(--landing-muted)]">
-            Start free and upgrade when you need more capacity. Paid plans are priced 20% below the reference tiers.
+            Monthly plans match Venice pricing. Yearly billing saves 10% and credits roll forward on paid plans.
           </p>
           <div className="mx-auto mt-7 inline-flex rounded-full bg-[var(--landing-card)] p-1 text-[12px] shadow-[var(--landing-card-shadow)]">
             <button
@@ -137,7 +138,7 @@ export function LandingPricing() {
                   </span>
                   <span className="pb-1.5 text-[14px] text-[var(--landing-faint)]">/{cycle === "monthly" ? "mo" : "yr"}</span>
                 </div>
-                {cycle === "yearly" ? <p className="mt-2 text-[12px] text-[var(--landing-faint)]">Equivalent to 12 months with 20% annual discount.</p> : null}
+                {cycle === "yearly" ? <p className="mt-2 text-[12px] text-[var(--landing-faint)]">Equivalent to 12 months with a 10% annual discount.</p> : null}
                 <button
                   type="button"
                   disabled={loading === key}
