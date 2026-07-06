@@ -6,7 +6,12 @@ export const runtime = "nodejs";
 
 function planForPriceId(priceId: string | null | undefined) {
   if (!priceId) return null;
-  return PLANS.find((p) => p.priceEnv && process.env[p.priceEnv] === priceId) || null;
+  // Check both monthly (STRIPE_PRICE_*) and yearly (STRIPE_PRICE_*_YEARLY) env vars
+  for (const plan of PLANS) {
+    if (plan.priceEnv && process.env[plan.priceEnv] === priceId) return plan;
+    if (plan.priceEnvYearly && process.env[plan.priceEnvYearly] === priceId) return plan;
+  }
+  return null;
 }
 
 export async function POST(request: Request) {

@@ -5,6 +5,7 @@ import { error } from "@/lib/http";
 import { streamChat, streamChatTo, hasOpenRouter, type ChatMessage, type ContentPart } from "@/lib/openrouter";
 import { findChatModel } from "@/lib/models";
 import { type PrivacyMode, isTeeOrE2ee, hasTeeProvider, endpoints } from "@/lib/privacy-router";
+import { verifyTeeAttestation } from "@/lib/attestation";
 
 export const runtime = "nodejs";
 
@@ -66,6 +67,19 @@ export async function POST(request: Request) {
   const model = findChatModel(modelId);
   if (ws.credits < model.credits) return error("Insufficient credits", 402);
 
+  // Fail-closed: TEE-backed privacy modes REQUIRE a configured, attested enclave.
+  // We never silently downgrade to a plaintext proxy — that would break the promise
+  // the user selected ("decrypted only inside a verified TEE").
+  if (isTeeOrE2ee(privacyMode)) {
+    if (!hasTeeProvider()) {
+      return error("TEE privacy mode is not available on this deployment.", 503);
+    }
+    const att = await verifyTeeAttestation(privacyMode);
+    if (!att.verified) {
+      return error(`TEE attestation could not be verified (${att.reason || "unverified"}). Refusing to send.`, 502);
+    }
+  }
+
   let priorMessages: { role: string; content: string | ContentPart[] }[] = [];
   let systemPrompt: string | null = null;
   let temperature = 0.7;
@@ -116,7 +130,7 @@ export async function POST(request: Request) {
       let full = "";
       try {
         if (!hasOpenRouter()) {
-          const demo = `OPENROUTER_API_KEY não configurada. Adicione sua chave em .env para respostas reais.\n\nVocê perguntou: "${content}"`;
+          const demo = `OPENROUTER_API_KEY is not configured. Add your key to .env for real responses.\n\nYou asked: "${content}"`;
           for (const chunk of demo.match(/.{1,4}/g) || [demo]) {
             full += chunk;
             controller.enqueue(encoder.encode(chunk));
@@ -124,7 +138,8 @@ export async function POST(request: Request) {
           }
         } else {
           let respBody: ReadableStream;
-          if (isTeeOrE2ee(privacyMode) && hasTeeProvider()) {
+          if (isTeeOrE2ee(privacyMode)) {
+            // Attestation was already verified above; provider is guaranteed present.
             const ep = endpoints()[privacyMode];
             if (!ep) throw new Error("TEE provider not configured");
             // Map to model IDs the TEE provider understands (strip duplicate prefixes)
@@ -170,6 +185,8 @@ export async function POST(request: Request) {
             .create({ data: { conversationId, role: "assistant", content: full, model: model.id } })
             .catch(() => {});
         }
+        // Zero-retention: drop the plaintext buffer immediately once streamed.
+        if (skipStore) full = "";
         await chargeCredits(ws.id, "chat", model.id, model.credits).catch(() => {});
         controller.close();
       }
@@ -179,8 +196,10 @@ export async function POST(request: Request) {
   return new Response(stream, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
       "X-Accel-Buffering": "no",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

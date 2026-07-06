@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const ws = await getWorkspaceForUser(user.id);
     if (!ws) return error("Workspace not found", 404);
-    if (!hasOpenAI()) return error("Voice não configurado (OPENAI_API_KEY ausente)", 503);
+    if (!hasOpenAI()) return error("Voice is not configured (OPENAI_API_KEY missing)", 503);
     if (ws.credits < CREDITS.tts) return error("Insufficient credits", 402);
 
     const body = await request.json();
@@ -24,7 +24,8 @@ export async function POST(request: Request) {
     return new Response(audio, {
       headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-cache" },
     });
-  } catch (e: any) {
-    return error(e.message || "TTS failed", 500);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Text-to-speech failed";
+    return error(message, 500);
   }
 }

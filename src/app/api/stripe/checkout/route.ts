@@ -9,17 +9,22 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const ws = await getWorkspaceForUser(user.id);
     if (!ws) return error("Workspace not found", 404);
-    if (!hasStripe()) return error("Billing não configurado (STRIPE_SECRET_KEY ausente)", 503);
+    if (!hasStripe()) return error("Billing is not configured (STRIPE_SECRET_KEY missing)", 503);
 
     const body = await request.json();
     const plan = PLANS.find((p) => p.id === body.plan && p.priceEnv);
     if (!plan) return error("Invalid plan");
-    const billingCycle = body.billingCycle === "yearly" ? "yearly" : "monthly";
-    const priceEnv = billingCycle === "yearly" ? `${plan.priceEnv}_YEARLY` : plan.priceEnv!;
+    const billingCycle: "monthly" | "yearly" = body.billingCycle === "yearly" ? "yearly" : "monthly";
+    // Yearly prices use a separate env var (e.g. STRIPE_PRICE_STARTER_YEARLY).
+    // If the yearly var is not configured, fall back to monthly.
+    const priceEnv =
+      billingCycle === "yearly" && plan.priceEnvYearly && process.env[plan.priceEnvYearly]
+        ? plan.priceEnvYearly
+        : plan.priceEnv!;
     const priceId = process.env[priceEnv];
-    if (!priceId) return error(`Price id ${priceEnv} não configurado`, 503);
+    if (!priceId) return error(`Price id ${priceEnv} is not configured`, 503);
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3014";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3012";
     const session = await stripe().checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],

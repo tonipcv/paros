@@ -18,6 +18,30 @@ Private, uncensored, multi-model generative AI. A privacy-first alternative to m
 - **OpenAI-compatible API** — drop-in `/api/v1` with API keys, rate limiting and docs.
 - **Billing** — Stripe subscriptions with a credits system.
 
+## Privacy modes
+
+Every chat picks one of four inference modes (selector in the chat header). TEE-backed
+modes **fail closed**: if the enclave's attestation can't be verified, the request is
+refused — we never silently downgrade to a plaintext proxy.
+
+| Mode | Guarantee | How |
+|------|-----------|-----|
+| **Anonymous** | Identity hidden; provider may retain | Proxied to frontier models |
+| **Private** (default) | Zero-retention by contract | OpenRouter with `data_collection: deny`; nothing stored |
+| **TEE** | GPU host cannot read prompts | Server relays to an *attested* Phala enclave (verified before sending) |
+| **E2EE** | Our server never sees the prompt, even in transit | Browser connects **directly** to the attested enclave; server only mints the session after verifying attestation |
+
+- **Attestation** (`src/lib/attestation.ts`): fetches the enclave's TDX/SGX quote and
+  verifies it through an attestation verifier before any prompt is sent. Cached briefly,
+  fails closed. Status is surfaced in the UI (`GET /api/attestation`).
+- **E2EE envelope** (`src/lib/e2e.ts` → `sealToEnclave`): ephemeral ECDH (P-256) + AES-256-GCM
+  to the enclave's attested public key.
+- **Local-first storage**: conversations live in your browser (IndexedDB) by default.
+- **Encrypted sync** (optional): AES-256-GCM with a passphrase only you hold; server stores ciphertext only.
+
+Set `PHALA_TEE_API_KEY` / `PHALA_E2EE_API_KEY` (+ endpoints) to enable TEE/E2EE. Without
+them, those modes are disabled in the UI. `TEE_ATTESTATION_DISABLED=true` is a dev-only escape hatch.
+
 ## Tech stack
 
 - Next.js 15 (App Router) + React 19 + TypeScript

@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const ws = await getWorkspaceForUser(user.id);
     if (!ws) return error("Workspace not found", 404);
-    if (!hasOpenAI()) return error("Voice não configurado (OPENAI_API_KEY ausente)", 503);
+    if (!hasOpenAI()) return error("Voice is not configured (OPENAI_API_KEY missing)", 503);
     if (ws.credits < CREDITS.stt) return error("Insufficient credits", 402);
 
     const form = await request.formData();
@@ -22,7 +22,8 @@ export async function POST(request: Request) {
     const text = await speechToText(file);
     await chargeCredits(ws.id, "stt", "whisper-1", CREDITS.stt).catch(() => {});
     return json({ text });
-  } catch (e: any) {
-    return error(e.message || "STT failed", 500);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Speech-to-text failed";
+    return error(message, 500);
   }
 }

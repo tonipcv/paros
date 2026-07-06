@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     const fullPrompt = style?.prompt ? `${prompt}, ${style.prompt}` : prompt;
 
     if (!hasOpenRouter()) {
-      return error("OPENROUTER_API_KEY não configurada — adicione em .env para gerar imagens", 503);
+      return error("OPENROUTER_API_KEY is not configured - add it to .env to generate images", 503);
     }
 
     const rawUrl = await generateImage(model.id, fullPrompt, inputImage);
@@ -56,7 +56,8 @@ export async function POST(request: Request) {
     });
     await chargeCredits(ws.id, inputImage ? "image-edit" : "image", model.id, cost).catch(() => {});
     return json({ image });
-  } catch (e: any) {
-    return error(e.message || "Image generation failed", 500);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Image generation failed";
+    return error(message, 500);
   }
 }

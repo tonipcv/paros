@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   EyeOff,
   ShieldClose,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
@@ -70,6 +71,7 @@ export default function ChatPage() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [privacyMode, setPrivacyMode] = useState<PrivacyMode>("private");
+  const [teeStatus, setTeeStatus] = useState<Record<"tee" | "e2ee", { verified: boolean; reason?: string; measurement?: string } | undefined>>({ tee: undefined, e2ee: undefined });
   const [voice, setVoice] = useState("alloy");
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -87,6 +89,19 @@ export default function ChatPage() {
     const mode: StorageMode = saved === "cloud" ? "cloud" : "local";
     setStorageMode(mode);
     refreshConvos(mode);
+    fetch("/api/attestation")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.attestations) return;
+        const next: typeof teeStatus = { tee: undefined, e2ee: undefined };
+        for (const a of d.attestations) {
+          if (a.mode === "tee" || a.mode === "e2ee") {
+            next[a.mode as "tee" | "e2ee"] = { verified: a.verified, reason: a.reason, measurement: a.measurement };
+          }
+        }
+        setTeeStatus(next);
+      })
+      .catch(() => {});
     const params = new URLSearchParams(window.location.search);
     const cid = params.get("character");
     if (cid) {
@@ -238,7 +253,7 @@ export default function ChatPage() {
 
     if (imgs.length) {
       if (!activeModel?.vision) {
-        toast.error(`${activeModel?.name} não suporta imagens. Escolha um modelo com visão.`);
+        toast.error(`${activeModel?.name} does not support images. Choose a vision-capable model.`);
       } else {
         const next: string[] = [];
         for (const file of imgs.slice(0, 4)) {
@@ -272,6 +287,78 @@ export default function ChatPage() {
   }
 
   // ---------- send ----------
+  // E2EE: browser talks DIRECTLY to the attested enclave. Our server mints a
+  // short-lived session (after verifying attestation) but is never in the data
+  // path, so it cannot see the prompt — not even in transit.
+  async function streamEnclaveDirect(
+    userText: string,
+    images: string[],
+    docs: DocFile[],
+    prior: { role: string; content: string }[],
+    onDelta: (t: string) => void,
+    signal: AbortSignal
+  ) {
+    const session = await fetch("/api/tee/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    });
+    if (!session.ok) {
+      const d = await session.json().catch(() => ({}));
+      throw new Error(d.error || "Enclave session refused");
+    }
+    const { baseUrl, apiKey, model: teeModel } = await session.json();
+
+    const docContext = docs.length
+      ? `The user attached the following document(s). Use them as context.\n\n${docs
+          .map((d) => `## Attached file: ${d.name}\n${d.text}`)
+          .join("\n\n---\n\n")}\n\n---\n\n`
+      : "";
+    const fullText = docContext + userText;
+    const userContent = images.length
+      ? [
+          { type: "text", text: fullText },
+          ...images.map((url) => ({ type: "image_url", image_url: { url } })),
+        ]
+      : fullText;
+    const messages = [
+      ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
+      ...prior.map((m) => ({ role: m.role, content: m.content })),
+      { role: "user", content: userContent },
+    ];
+
+    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: teeModel, messages, stream: true, temperature }),
+      signal,
+    });
+    if (!res.ok || !res.body) {
+      const t = await res.text().catch(() => "");
+      throw new Error(`Enclave error ${res.status}: ${t.slice(0, 200)}`);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const data = trimmed.slice(5).trim();
+        if (data === "[DONE]") continue;
+        try {
+          const delta = JSON.parse(data)?.choices?.[0]?.delta?.content;
+          if (delta) onDelta(delta);
+        } catch {}
+      }
+    }
+  }
+
   async function send() {
     const content = input.trim();
     if ((!content && attachments.length === 0 && documents.length === 0) || streaming) return;
@@ -303,6 +390,19 @@ export default function ChatPage() {
     abortRef.current = controller;
     let acc = "";
     try {
+      if (privacyMode === "e2ee") {
+        // Direct-to-enclave: server never sees this prompt.
+        await streamEnclaveDirect(content, sendingImages, sendingDocs, priorHistory, (delta) => {
+          acc += delta;
+          setMessages((m) => m.map((msg) => (msg.id === assistantId ? { ...msg, content: acc } : msg)));
+        }, controller.signal);
+
+        if (!temporary) {
+          await persistTurn(userMsg, { id: assistantId, role: "assistant", content: acc });
+        }
+        load();
+        return;
+      }
       // Inference is ALWAYS ephemeral: the server runs the model but never stores content.
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -625,16 +725,17 @@ export default function ChatPage() {
               {privacyOpen && (
                 <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-card border border-borderDefault bg-surface p-1.5 shadow-card-hover">
                   {(["anonymous", "private", "tee", "e2ee"] as PrivacyMode[]).map((m) => {
-                    const labels: Record<PrivacyMode, { icon: any; desc: string; disabled?: boolean }> = {
+                    const labels: Record<PrivacyMode, { icon: any; desc: string }> = {
                       anonymous: { icon: EyeOff, desc: "Frontier models. Identity hidden. Provider may retain." },
                       private: { icon: ShieldCheck, desc: "Zero-retention by contract. Default." },
-                      tee: { icon: Lock, desc: "Hardware-isolated GPU enclave (Phala)." },
-                      e2ee: { icon: ShieldClose, desc: "Encrypted on device, decrypted in TEE only." },
+                      tee: { icon: Lock, desc: "Hardware-isolated GPU enclave (Phala), attested." },
+                      e2ee: { icon: ShieldClose, desc: "Encrypted to the enclave. Our server never sees it." },
                     };
                     const info = labels[m];
                     const Icon = info.icon;
-                    const disabled =
-                      (m === "tee" || m === "e2ee") && false; // set true if TEE provider not configured
+                    const status = m === "tee" || m === "e2ee" ? teeStatus[m] : undefined;
+                    // Fail-closed: TEE modes are only selectable once attestation is verified.
+                    const disabled = (m === "tee" || m === "e2ee") && !status?.verified;
                     return (
                       <button
                         key={m}
@@ -650,8 +751,24 @@ export default function ChatPage() {
                       >
                         <Icon size={15} className={`mt-0.5 shrink-0 ${m === privacyMode ? "text-primary" : "text-tertiary"}`} />
                         <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-primary capitalize">{m}</p>
-                          <p className="mt-0.5 text-[11px] leading-tight text-muted">{info.desc}</p>
+                          <p className="flex items-center gap-1.5 text-[13px] font-medium text-primary capitalize">
+                            {m}
+                            {(m === "tee" || m === "e2ee") &&
+                              (status?.verified ? (
+                                <span className="flex items-center gap-0.5 rounded bg-bgActive px-1 py-0.5 text-[9px] font-normal text-highlight">
+                                  <ShieldCheck size={9} /> attested
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-0.5 rounded bg-bgActive px-1 py-0.5 text-[9px] font-normal text-tertiary">
+                                  <ShieldAlert size={9} /> unavailable
+                                </span>
+                              ))}
+                          </p>
+                          <p className="mt-0.5 text-[11px] leading-tight text-muted">
+                            {(m === "tee" || m === "e2ee") && status && !status.verified && status.reason
+                              ? status.reason
+                              : info.desc}
+                          </p>
                         </div>
                       </button>
                     );
@@ -715,8 +832,8 @@ export default function ChatPage() {
             {!temporary && privacyMode !== "private" && (
               <div className="mb-4 flex items-center justify-center gap-2 rounded-btn border border-borderDefault bg-surface px-3 py-2 text-[12px] text-muted">
                 {privacyMode === "anonymous" && <><EyeOff size={13} /> Anonymous mode — provider may retain prompts.</>}
-                {privacyMode === "tee" && <><Lock size={13} /> TEE mode — hardware-isolated GPU enclave.</>}
-                {privacyMode === "e2ee" && <><ShieldClose size={13} /> E2EE mode — encrypted on device, decrypted in TEE.</>}
+                {privacyMode === "tee" && <><Lock size={13} /> TEE mode — attested hardware enclave; GPU host cannot read prompts.</>}
+                {privacyMode === "e2ee" && <><ShieldClose size={13} /> E2EE mode — sent directly to the attested enclave; our server never sees it.</>}
               </div>
             )}
             {messages.length === 0 ? (

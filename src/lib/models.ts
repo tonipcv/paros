@@ -50,7 +50,7 @@ export const CHAT_MODELS: ChatModel[] = [
     provider: "Alibaba",
     description: "Multilingual powerhouse.",
     context: "128K",
-    credits: 1,
+    credits: 2,
   },
   {
     id: "google/gemini-2.0-flash-001",
@@ -59,7 +59,7 @@ export const CHAT_MODELS: ChatModel[] = [
     description: "Fast multimodal model.",
     context: "1M",
     vision: true,
-    credits: 1,
+    credits: 2,
   },
   {
     id: "cognitivecomputations/dolphin-mixtral-8x22b",
@@ -68,7 +68,7 @@ export const CHAT_MODELS: ChatModel[] = [
     description: "Uncensored, unfiltered responses.",
     context: "16K",
     uncensored: true,
-    credits: 2,
+    credits: 3,
   },
   {
     id: "cognitivecomputations/dolphin3.0-mistral-24b:free",
@@ -77,7 +77,7 @@ export const CHAT_MODELS: ChatModel[] = [
     description: "Steerable, uncensored assistant.",
     context: "32K",
     uncensored: true,
-    credits: 1,
+    credits: 2,
   },
   {
     id: "neversleep/llama-3.1-lumimaid-70b",
@@ -86,7 +86,7 @@ export const CHAT_MODELS: ChatModel[] = [
     description: "Uncensored roleplay & creative writing.",
     context: "16K",
     uncensored: true,
-    credits: 3,
+    credits: 4,
   },
   {
     id: "sao10k/l3.1-euryale-70b",
@@ -95,7 +95,7 @@ export const CHAT_MODELS: ChatModel[] = [
     description: "Uncensored creative & narrative model.",
     context: "16K",
     uncensored: true,
-    credits: 3,
+    credits: 4,
   },
 ];
 
@@ -126,7 +126,7 @@ export const VOICES = [
   { id: "shimmer", name: "Shimmer" },
 ];
 
-export const CREDITS = { tts: 2, stt: 2, imageEdit: 6 };
+export const CREDITS = { tts: 1, stt: 1, imageEdit: 3 };
 
 export const IMAGE_MODELS = [
   { id: "google/gemini-2.5-flash-image", name: "Gemini 2.5 Flash Image", credits: 5 },
@@ -135,8 +135,8 @@ export const IMAGE_MODELS = [
 ];
 
 export const PLANS = [
-  { id: "FREE", name: "Free", price: 0, credits: 500, features: ["500 credits/mo", "Standard models", "Community support"] },
-  { id: "STARTER", name: "Starter", price: 9, credits: 5000, priceEnv: "STRIPE_PRICE_STARTER", features: ["5,000 credits/mo", "All chat models", "Image generation", "API access"] },
-  { id: "PRO", name: "Pro", price: 29, credits: 25000, priceEnv: "STRIPE_PRICE_PRO", features: ["25,000 credits/mo", "Priority inference", "Uncensored models", "Higher rate limits"] },
-  { id: "MAX", name: "Max", price: 99, credits: 120000, priceEnv: "STRIPE_PRICE_MAX", features: ["120,000 credits/mo", "Dedicated throughput", "Early access models", "Priority support"] },
+  { id: "FREE", name: "Free", price: 0, credits: 10, features: ["10 credits/mo", "Base chat models", "Local storage only"] },
+  { id: "STARTER", name: "Starter", price: 9, credits: 100, priceEnv: "STRIPE_PRICE_STARTER", priceEnvYearly: "STRIPE_PRICE_STARTER_YEARLY", features: ["100 credits/mo", "All chat models", "Image generation", "API access"] },
+  { id: "PRO", name: "Pro", price: 29, credits: 500, priceEnv: "STRIPE_PRICE_PRO", priceEnvYearly: "STRIPE_PRICE_PRO_YEARLY", features: ["500 credits/mo", "Priority inference", "Uncensored models", "Higher rate limits"] },
+  { id: "MAX", name: "Max", price: 99, credits: 2500, priceEnv: "STRIPE_PRICE_MAX", priceEnvYearly: "STRIPE_PRICE_MAX_YEARLY", features: ["2,500 credits/mo", "Dedicated throughput", "Early access models", "Priority support"] },
 ];

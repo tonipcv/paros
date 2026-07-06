@@ -1,14 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
 import { PLANS } from "@/lib/models";
 
+type BillingCycle = "monthly" | "yearly";
+
 export default function BillingPage() {
   const { workspace, load } = useAppStore();
   const [loading, setLoading] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
+
+  const hasYearly = useMemo(() =>
+    PLANS.some((p) => p.priceEnvYearly && process.env["NEXT_PUBLIC_" + p.priceEnvYearly]),
+    []
+  );
 
   useEffect(() => {
     load();
@@ -37,7 +45,7 @@ export default function BillingPage() {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, billingCycle }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
@@ -48,6 +56,8 @@ export default function BillingPage() {
       setLoading(null);
     }
   }
+
+  const discount = billingCycle === "yearly" ? 0.83 : 1; // ~2 months free
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
@@ -64,16 +74,49 @@ export default function BillingPage() {
         )}
       </div>
 
+      {hasYearly && (
+        <div className="mb-6 flex items-center justify-center">
+          <div className="flex rounded-btn border border-borderDefault p-0.5 text-[12px]">
+            <button
+              onClick={() => setBillingCycle("monthly")}
+              className={`rounded-[6px] px-4 py-1.5 transition ${
+                billingCycle === "monthly" ? "bg-bgActive text-primary" : "text-tertiary hover:text-primary"
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle("yearly")}
+              className={`flex items-center gap-1 rounded-[6px] px-4 py-1.5 transition ${
+                billingCycle === "yearly" ? "bg-bgActive text-primary" : "text-tertiary hover:text-primary"
+              }`}
+            >
+              Yearly
+              <span className="rounded bg-highlight/20 px-1.5 py-0.5 text-[10px] text-highlight">
+                Save ~17%
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {PLANS.map((plan) => {
           const current = workspace?.plan === plan.id;
+          const price = billingCycle === "yearly" ? Math.round(plan.price * 12 * discount) / 12 : plan.price;
+          const yearlyTotal = billingCycle === "yearly" ? Math.round(plan.price * 12 * discount) : null;
           return (
             <div key={plan.id} className={`card flex flex-col p-5 ${current ? "border-highlight/40" : ""}`}>
               <p className="text-[13px] font-semibold text-primary">{plan.name}</p>
               <p className="mt-2">
-                <span className="text-2xl font-semibold text-grad-stat">${plan.price}</span>
+                <span className="text-2xl font-semibold text-grad-stat">${price}</span>
                 <span className="text-xs text-muted">/mo</span>
               </p>
+              {yearlyTotal && (
+                <p className="text-[10px] text-muted">
+                  ${yearlyTotal}/year billed annually
+                </p>
+              )}
               <ul className="mt-4 flex-1 space-y-2">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-[12px] text-secondary">

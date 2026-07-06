@@ -9,7 +9,7 @@ export async function createGuestUser() {
       email,
       name: "Guest",
       role: "USER",
-      workspace: { create: { name: "Guest workspace", plan: "FREE", credits: 40 } },
+      workspace: { create: { name: "Guest workspace", plan: "FREE", credits: 5 } },
     },
     include: { workspace: true },
   });
@@ -33,7 +33,7 @@ export async function createUserWithWorkspace(data: {
         create: {
           name: `${data.name || email.split("@")[0]}'s Workspace`,
           plan: "FREE",
-          credits: 500,
+          credits: 10,
         },
       },
     },
@@ -59,7 +59,7 @@ export async function findOrCreateOAuthUser(data: { name: string; email: string 
         create: {
           name: `${data.name || email.split("@")[0]}'s Workspace`,
           plan: "FREE",
-          credits: 500,
+          credits: 10,
         },
       },
     },

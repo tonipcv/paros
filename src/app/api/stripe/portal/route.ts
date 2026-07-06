@@ -9,18 +9,19 @@ export async function POST() {
     const user = await requireUser();
     const ws = await getWorkspaceForUser(user.id);
     if (!ws) return error("Workspace not found", 404);
-    if (!hasStripe()) return error("Billing não configurado", 503);
+    if (!hasStripe()) return error("Billing is not configured", 503);
 
     const sub = await prisma.subscription.findUnique({ where: { workspaceId: ws.id } });
     if (!sub?.stripeCustomerId) return error("No active subscription", 400);
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3014";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3012";
     const session = await stripe().billingPortal.sessions.create({
       customer: sub.stripeCustomerId,
       return_url: `${appUrl}/billing`,
     });
     return json({ url: session.url });
-  } catch (e: any) {
-    return error(e.message, 500);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Portal failed";
+    return error(message, 500);
   }
 }
