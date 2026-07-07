@@ -96,6 +96,16 @@ test("metered routes reserve credits up front and refund on failure", () => {
   }
 });
 
+test("password reset avoids enumeration and is single-use + session-invalidating", () => {
+  const forgot = read("src/app/api/password/forgot/route.ts");
+  assert.match(forgot, /Never reveal/);
+  assert.doesNotMatch(forgot, /404/);
+  assert.match(forgot, /rateLimitShared/);
+  const reset = read("src/app/api/password/reset/route.ts");
+  assert.match(reset, /usedAt/);
+  assert.match(reset, /session\.deleteMany/);
+});
+
 test("cron endpoints authenticate with a timing-safe compare", () => {
   for (const p of ["src/app/api/cron/reset-free-credits/route.ts", "src/app/api/cron/cleanup-guests/route.ts"]) {
     assert.match(read(p), /timingSafeEqual/, `${p} must use timingSafeEqual`);

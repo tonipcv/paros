@@ -3,6 +3,9 @@ import { createSession, setSessionCookie } from "@/lib/auth";
 import { error, isEmail, json } from "@/lib/http";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { rateLimitShared, clientIp } from "@/lib/rate-limit";
+import { sendEmail, emailLayout, button, appUrl } from "@/lib/email";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
@@ -21,8 +24,26 @@ export async function POST(request: Request) {
     const user = await createUserWithWorkspace({ name, email, password });
     const token = await createSession(user.id);
     await setSessionCookie(token);
+
+    // Welcome email (best-effort; never blocks signup).
+    sendEmail({
+      to: String(email).toLowerCase(),
+      subject: "Welcome to KRX",
+      html: emailLayout({
+        title: "Welcome to KRX",
+        bodyHtml: `<p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#c8c8c8;">
+            Your private AI workspace is ready. Chat with frontier and open models, generate images,
+            and choose your privacy mode — including hardware-attested TEE and real end-to-end encryption.
+          </p>
+          <p style="margin:0;">${button(`${appUrl()}/chat`, "Open KRX")}</p>`,
+        footer: "You're receiving this because you created a KRX account.",
+      }),
+      text: `Welcome to KRX. Open your workspace: ${appUrl()}/chat`,
+    }).catch((e) => console.error("welcome email failed:", e));
+
     return json({ ok: true });
-  } catch (e: any) {
-    return error(e.message || "Signup failed", 400);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Signup failed";
+    return error(message, 400);
   }
 }

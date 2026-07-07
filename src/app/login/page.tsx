@@ -107,6 +107,9 @@ export default function LoginPage() {
             <input id="password" name="password" type="password" required autoComplete="current-password"
               className="h-11 w-full rounded-lg bg-[var(--landing-field)] px-3 text-sm text-[var(--landing-text)] outline-none placeholder:text-[var(--landing-faint)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] focus:ring-1 focus:ring-[var(--landing-faint)]"
               placeholder="Your password" />
+            <div className="mt-1.5 text-right">
+              <Link href="/forgot" className="text-[11px] text-[var(--landing-faint)] hover:text-[var(--landing-text)] hover:underline">Forgot password?</Link>
+            </div>
           </div>
           {turnstileSiteKey && <TurnstileWidget siteKey={turnstileSiteKey} onVerify={setTurnstileToken} />}
           <button disabled={loading}

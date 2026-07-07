@@ -39,6 +39,7 @@ model User {
 
   workspace Workspace?
   sessions  Session[]
+  passwordResets PasswordResetToken[]
 
   @@map("users")
 }
@@ -218,4 +219,17 @@ model RateLimit {
   updatedAt   DateTime @updatedAt
 
   @@map("rate_limits")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
