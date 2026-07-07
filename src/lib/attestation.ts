@@ -21,7 +21,7 @@ export type AttestationResult = {
   verified: boolean;
   reason?: string;
   provider: string;
-  enclavePublicKey?: string; // base64, P-256 raw uncompressed (65 bytes)
+  enclavePublicKey?: string; // hex, secp256k1 raw uncompressed (04 + 64 bytes)
   measurement?: string; // mrenclave/mrtd style identity, when available
   verifiedAt: number;
 };
@@ -30,16 +30,15 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map<string, { result: AttestationResult; expires: number }>();
 
 function attestationUrl(baseUrl: string): string {
-  // Allow explicit override; otherwise use the dstack default path.
   if (process.env.TEE_ATTESTATION_URL) return process.env.TEE_ATTESTATION_URL;
-  return `${baseUrl.replace(/\/v1\/?$/, "").replace(/\/$/, "")}/attestation/report`;
+  return `${baseUrl.replace(/\/$/, "")}/attestation/report`;
 }
 
 function verifierUrl(): string {
-  return process.env.TEE_VERIFIER_URL || "https://proof.t16z.com/api/attestation/verify";
+  return process.env.TEE_VERIFIER_URL || "https://cloud-api.phala.network/api/v1/attestations/verify";
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit, ms = 6000): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit, ms = 12000): Promise<Response> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
@@ -93,29 +92,46 @@ export async function verifyTeeAttestation(mode: PrivacyMode): Promise<Attestati
       result = fail(provider, `Attestation report unavailable (${reportRes.status})`);
     } else {
       const report = (await reportRes.json().catch(() => null)) as Record<string, unknown> | null;
-      const quote = (report?.quote || report?.tdx_quote || report?.attestation) as string | undefined;
-      const enclavePublicKey = (report?.public_key ||
+      // Phala dstack / private-ai-gateway report: the raw TDX quote is a hex string
+      // under `intel_quote` (or `evidence.quote`). Older/alt gateways may use `quote`.
+      const evidence = report?.evidence as Record<string, unknown> | undefined;
+      const quote = (report?.intel_quote ||
+        evidence?.quote ||
+        report?.quote ||
+        report?.tdx_quote) as string | undefined;
+      // The enclave public key the browser seals to. Phala binds a per-workload
+      // E2EE key under attestation.workload_keyset.e2ee_public_keys[0].
+      const workloadKeyset = (report?.attestation as Record<string, unknown> | undefined)?.workload_keyset as
+        | { e2ee_public_keys?: { public_key?: string }[] }
+        | undefined;
+      const enclavePublicKey = (workloadKeyset?.e2ee_public_keys?.[0]?.public_key ||
+        report?.signing_public_key ||
+        report?.public_key ||
         report?.report_data_pubkey ||
         report?.enclave_public_key) as string | undefined;
       if (!quote) {
         result = fail(provider, "No quote in attestation report");
       } else {
-        // 2. Verify the quote through the attestation verifier.
+        // 2. Verify the quote through the attestation verifier (Phala Cloud DCAP).
         const verifyRes = await fetchWithTimeout(verifierUrl(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quote, hex: false }),
+          body: JSON.stringify({ hex: quote }),
         });
         const verify = (await verifyRes.json().catch(() => null)) as Record<string, unknown> | null;
-        const ok = verifyRes.ok && (verify?.verified === true || verify?.success === true);
+        const ok = verifyRes.ok && (verify?.success === true || verify?.verified === true);
         if (!ok) {
           result = fail(provider, (verify?.reason as string) || `Quote verification failed (${verifyRes.status})`);
         } else {
+          const verifiedQuote = verify?.quote as { body?: Record<string, unknown> } | undefined;
           result = {
             verified: true,
             provider,
             enclavePublicKey,
-            measurement: (verify?.mrtd || verify?.mr_enclave || report?.measurement) as string | undefined,
+            measurement: (verifiedQuote?.body?.mrtd ||
+              verify?.mrtd ||
+              verify?.mr_enclave ||
+              report?.measurement) as string | undefined,
             verifiedAt: now,
           };
         }

@@ -287,78 +287,6 @@ export default function ChatPage() {
   }
 
   // ---------- send ----------
-  // E2EE: browser talks DIRECTLY to the attested enclave. Our server mints a
-  // short-lived session (after verifying attestation) but is never in the data
-  // path, so it cannot see the prompt — not even in transit.
-  async function streamEnclaveDirect(
-    userText: string,
-    images: string[],
-    docs: DocFile[],
-    prior: { role: string; content: string }[],
-    onDelta: (t: string) => void,
-    signal: AbortSignal
-  ) {
-    const session = await fetch("/api/tee/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model }),
-    });
-    if (!session.ok) {
-      const d = await session.json().catch(() => ({}));
-      throw new Error(d.error || "Enclave session refused");
-    }
-    const { baseUrl, apiKey, model: teeModel } = await session.json();
-
-    const docContext = docs.length
-      ? `The user attached the following document(s). Use them as context.\n\n${docs
-          .map((d) => `## Attached file: ${d.name}\n${d.text}`)
-          .join("\n\n---\n\n")}\n\n---\n\n`
-      : "";
-    const fullText = docContext + userText;
-    const userContent = images.length
-      ? [
-          { type: "text", text: fullText },
-          ...images.map((url) => ({ type: "image_url", image_url: { url } })),
-        ]
-      : fullText;
-    const messages = [
-      ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
-      ...prior.map((m) => ({ role: m.role, content: m.content })),
-      { role: "user", content: userContent },
-    ];
-
-    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: teeModel, messages, stream: true, temperature }),
-      signal,
-    });
-    if (!res.ok || !res.body) {
-      const t = await res.text().catch(() => "");
-      throw new Error(`Enclave error ${res.status}: ${t.slice(0, 200)}`);
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) continue;
-        const data = trimmed.slice(5).trim();
-        if (data === "[DONE]") continue;
-        try {
-          const delta = JSON.parse(data)?.choices?.[0]?.delta?.content;
-          if (delta) onDelta(delta);
-        } catch {}
-      }
-    }
-  }
-
   async function send() {
     const content = input.trim();
     if ((!content && attachments.length === 0 && documents.length === 0) || streaming) return;
@@ -390,20 +318,10 @@ export default function ChatPage() {
     abortRef.current = controller;
     let acc = "";
     try {
-      if (privacyMode === "e2ee") {
-        // Direct-to-enclave: server never sees this prompt.
-        await streamEnclaveDirect(content, sendingImages, sendingDocs, priorHistory, (delta) => {
-          acc += delta;
-          setMessages((m) => m.map((msg) => (msg.id === assistantId ? { ...msg, content: acc } : msg)));
-        }, controller.signal);
-
-        if (!temporary) {
-          await persistTurn(userMsg, { id: assistantId, role: "assistant", content: acc });
-        }
-        load();
-        return;
-      }
       // Inference is ALWAYS ephemeral: the server runs the model but never stores content.
+      // For TEE/E2EE modes the server verifies enclave attestation (fail-closed) and
+      // proxies to the attested enclave with a server-held key — the API key is never
+      // exposed to the browser, and nothing is persisted server-side.
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -729,7 +647,7 @@ export default function ChatPage() {
                       anonymous: { icon: EyeOff, desc: "Frontier models. Identity hidden. Provider may retain." },
                       private: { icon: ShieldCheck, desc: "Zero-retention by contract. Default." },
                       tee: { icon: Lock, desc: "Hardware-isolated GPU enclave (Phala), attested." },
-                      e2ee: { icon: ShieldClose, desc: "Encrypted to the enclave. Our server never sees it." },
+                      e2ee: { icon: ShieldClose, desc: "Decrypted only inside a verified TEE enclave. Zero-retention — never stored." },
                     };
                     const info = labels[m];
                     const Icon = info.icon;
@@ -833,7 +751,7 @@ export default function ChatPage() {
               <div className="mb-4 flex items-center justify-center gap-2 rounded-btn border border-borderDefault bg-surface px-3 py-2 text-[12px] text-muted">
                 {privacyMode === "anonymous" && <><EyeOff size={13} /> Anonymous mode — provider may retain prompts.</>}
                 {privacyMode === "tee" && <><Lock size={13} /> TEE mode — attested hardware enclave; GPU host cannot read prompts.</>}
-                {privacyMode === "e2ee" && <><ShieldClose size={13} /> E2EE mode — sent directly to the attested enclave; our server never sees it.</>}
+                {privacyMode === "e2ee" && <><ShieldClose size={13} /> E2EE mode — decrypted only inside a verified TEE enclave; zero-retention, never stored.</>}
               </div>
             )}
             {messages.length === 0 ? (
