@@ -60,6 +60,21 @@ export function preferredModels(): string[] {
   return ["deepseek/deepseek-chat", "meta-llama/llama-3.3-70b-instruct", "qwen/qwen-2.5-72b-instruct"];
 }
 
+// TEE/E2EE inference runs on Phala-hosted models. Map the user-selected app
+// model to a Phala-served model id (used as the sealed request model), falling
+// back to a broadly available default.
+const PHALA_E2EE_DEFAULT = "meta-llama/llama-3.3-70b-instruct";
+const PHALA_E2EE_MODEL_MAP: Record<string, string> = {
+  "meta-llama/llama-3.3-70b-instruct": "meta-llama/llama-3.3-70b-instruct",
+  "openai/gpt-4o-mini": "openai/gpt-4o-mini",
+  "deepseek/deepseek-chat": "deepseek/deepseek-chat-v3.1",
+  "google/gemini-2.0-flash-001": "google/gemini-2.5-flash",
+};
+
+export function phalaE2eeModel(appModelId: string): string {
+  return PHALA_E2EE_MODEL_MAP[appModelId] || PHALA_E2EE_DEFAULT;
+}
+
 export function endpoints(): Record<PrivacyMode, { baseUrl: string; apiKey: string } | null> {
   return {
     anonymous: null,

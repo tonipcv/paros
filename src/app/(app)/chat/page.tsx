@@ -31,6 +31,8 @@ import type { ChatModel } from "@/lib/models";
 import { VOICES } from "@/lib/models";
 import { Markdown } from "@/components/markdown";
 import { encryptText, decryptText } from "@/lib/e2e";
+import { sealChat, openChatReply } from "@/lib/e2e-seal";
+import { phalaE2eeModel } from "@/lib/privacy-router";
 import {
   listLocalConversations,
   getLocalConversation,
@@ -318,6 +320,46 @@ export default function ChatPage() {
     abortRef.current = controller;
     let acc = "";
     try {
+      if (privacyMode === "e2ee") {
+        // Real E2EE: seal every message to the attested enclave key in the
+        // browser. Our server relays only ciphertext and never sees plaintext.
+        const att = await fetch("/api/attestation?mode=e2ee").then((r) => r.json());
+        if (!att?.verified || !att?.enclavePublicKey) {
+          throw new Error(`Enclave attestation unavailable (${att?.reason || "unverified"})`);
+        }
+        const docContext = sendingDocs.length
+          ? `The user attached the following document(s). Use them as context.\n\n${sendingDocs
+              .map((d) => `## Attached file: ${d.name}\n${d.text}`)
+              .join("\n\n---\n\n")}\n\n---\n\n`
+          : "";
+        const phalaModel = phalaE2eeModel(model);
+        const outbound = [
+          ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
+          ...priorHistory.map((m) => ({ role: m.role, content: m.content })),
+          { role: "user", content: docContext + content },
+        ];
+        const sealed = await sealChat(att.enclavePublicKey, phalaModel, outbound);
+        const res = await fetch("/api/chat/e2ee", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: phalaModel,
+            creditModel: model,
+            messages: sealed.messages,
+            e2eeHeaders: sealed.headers,
+          }),
+          signal: controller.signal,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "E2EE request failed");
+        acc = await openChatReply(sealed, data);
+        setMessages((m) => m.map((msg) => (msg.id === assistantId ? { ...msg, content: acc } : msg)));
+        if (!temporary) {
+          await persistTurn(userMsg, { id: assistantId, role: "assistant", content: acc });
+        }
+        load();
+        return;
+      }
       // Inference is ALWAYS ephemeral: the server runs the model but never stores content.
       // For TEE/E2EE modes the server verifies enclave attestation (fail-closed) and
       // proxies to the attested enclave with a server-held key — the API key is never
@@ -647,7 +689,7 @@ export default function ChatPage() {
                       anonymous: { icon: EyeOff, desc: "Frontier models. Identity hidden. Provider may retain." },
                       private: { icon: ShieldCheck, desc: "Zero-retention by contract. Default." },
                       tee: { icon: Lock, desc: "Hardware-isolated GPU enclave (Phala), attested." },
-                      e2ee: { icon: ShieldClose, desc: "Decrypted only inside a verified TEE enclave. Zero-retention — never stored." },
+                      e2ee: { icon: ShieldClose, desc: "Encrypted on your device to the attested enclave. Our server only relays ciphertext." },
                     };
                     const info = labels[m];
                     const Icon = info.icon;
@@ -751,7 +793,7 @@ export default function ChatPage() {
               <div className="mb-4 flex items-center justify-center gap-2 rounded-btn border border-borderDefault bg-surface px-3 py-2 text-[12px] text-muted">
                 {privacyMode === "anonymous" && <><EyeOff size={13} /> Anonymous mode — provider may retain prompts.</>}
                 {privacyMode === "tee" && <><Lock size={13} /> TEE mode — attested hardware enclave; GPU host cannot read prompts.</>}
-                {privacyMode === "e2ee" && <><ShieldClose size={13} /> E2EE mode — decrypted only inside a verified TEE enclave; zero-retention, never stored.</>}
+                {privacyMode === "e2ee" && <><ShieldClose size={13} /> E2EE mode — sealed on your device to the attested enclave (secp256k1); our server only relays ciphertext.</>}
               </div>
             )}
             {messages.length === 0 ? (
