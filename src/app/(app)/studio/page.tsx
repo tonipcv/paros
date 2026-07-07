@@ -67,7 +67,7 @@ export default function StudioPage() {
 
       <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
         <div className="card h-fit p-5">
-          <label className="label">Base image (optional — for editing)</label>
+          <label className="label">Base image (optional - for editing)</label>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files)} />
           {inputImage ? (
             <div className="relative mb-4 w-fit">

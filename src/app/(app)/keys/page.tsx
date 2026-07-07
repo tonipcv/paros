@@ -67,7 +67,7 @@ export default function KeysPage() {
 
       {newKey && (
         <div className="card mb-5 border-highlight/30 p-4">
-          <p className="mb-2 text-[13px] font-medium text-primary">Your new API key (copy it now — shown once)</p>
+          <p className="mb-2 text-[13px] font-medium text-primary">Your new API key (copy it now - shown once)</p>
           <div className="flex items-center gap-2">
             <code className="flex-1 truncate rounded-btn border border-borderDefault bg-bg px-3 py-2 text-[12px] text-silver">
               {newKey}

@@ -75,7 +75,7 @@ export default function SettingsPage() {
       body: JSON.stringify({ privacyMode: value }),
     });
     await load();
-    toast.success(value ? "Privacy mode on — new chats won't be saved" : "Privacy mode off");
+    toast.success(value ? "Privacy mode on - new chats won't be saved" : "Privacy mode off");
   }
 
   async function handleLogout() {
@@ -152,7 +152,7 @@ export default function SettingsPage() {
               <ShieldCheck size={15} className="text-tertiary" /> End-to-end encryption
             </p>
             <p className="mt-1 text-xs text-muted">
-              Encrypt conversations with a passphrase. We store only ciphertext — even we can&apos;t read them.
+              Encrypt conversations with a passphrase. We store only ciphertext - even we can&apos;t read it.
               If you lose the passphrase, the data is unrecoverable.
             </p>
           </div>
@@ -170,7 +170,7 @@ export default function SettingsPage() {
         </div>
         {workspace?.encEnabled && (
           <p className="mt-3 text-[11px] text-tertiary">
-            Status: {encKey ? "unlocked on this device" : "locked — unlock to read/write encrypted chats"}
+            Status: {encKey ? "unlocked on this device" : "locked - unlock to read/write encrypted chats"}
           </p>
         )}
       </div>
