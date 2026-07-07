@@ -300,6 +300,12 @@ export default function ChatPage() {
 
     const sendingImages = attachments;
     const sendingDocs = documents;
+    // E2EE seals text to the enclave; the attested Phala gateway does not decrypt
+    // image fields, so refuse rather than silently drop attached images.
+    if (privacyMode === "e2ee" && sendingImages.length > 0) {
+      toast.error("Image attachments aren't supported in E2EE mode yet. Switch to Private or TEE mode to send images.");
+      return;
+    }
     const sendingAttachments: Attachment[] = [
       ...sendingImages.map((url) => ({ kind: "image" as const, url })),
       ...sendingDocs.map((d) => ({ kind: "file" as const, name: d.name })),

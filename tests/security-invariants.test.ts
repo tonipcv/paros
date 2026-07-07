@@ -117,6 +117,11 @@ test("E2EE sealing uses the ACI v2 secp256k1 suite and pipe AAD", () => {
   assert.match(src, /v2\|resp\|algo=/);
 });
 
+test("E2EE mode refuses image attachments instead of dropping them", () => {
+  const src = read("src/app/(app)/chat/page.tsx");
+  assert.match(src, /privacyMode === "e2ee" && sendingImages\.length/);
+});
+
 test("Google OAuth rejects unverified emails and secures the state cookie", () => {
   assert.match(read("src/app/api/google/callback/route.ts"), /verified_email/);
   assert.match(read("src/app/api/auth/google/route.ts"), /secure:\s*process\.env\.NODE_ENV/);
