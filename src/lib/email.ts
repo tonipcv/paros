@@ -1,21 +1,38 @@
 // Transactional email sender.
 //
-// Cloudflare provides inbound Email Routing for the domain (receiving
-// krx@heuv.dev), but has no transactional *outbound* API — so outbound mail is
-// sent through an ESP (Resend by default) whose sender domain is authenticated
-// with DKIM/SPF/DMARC records living in Cloudflare DNS for heuv.dev.
-//
-// If no provider is configured, sends are skipped (and logged) rather than
-// throwing, so flows like password reset degrade gracefully in dev.
+// Cloudflare Email Routing (already configured for heuv.dev) only *receives*
+// mail. Outbound transactional email is sent through MailChannels — the
+// Cloudflare-ecosystem email API — signed with a DKIM key whose public half
+// lives in Cloudflare DNS for heuv.dev. (Resend is kept as an optional
+// alternative.) If nothing is configured, sends are skipped (and logged) so
+// flows like password reset degrade gracefully in dev.
 
+const MAILCHANNELS_ENDPOINT = "https://api.mailchannels.net/tx/v1/send";
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
+type Provider = "mailchannels" | "resend";
+
+function selectedProvider(): Provider | null {
+  const explicit = (process.env.EMAIL_PROVIDER || "").toLowerCase();
+  if (explicit === "mailchannels" || explicit === "resend") return explicit;
+  if (process.env.MAILCHANNELS_API_KEY || process.env.MAILCHANNELS_DKIM_PRIVATE_KEY) return "mailchannels";
+  if (process.env.RESEND_API_KEY) return "resend";
+  return null;
+}
+
 export function hasEmail(): boolean {
-  return Boolean(process.env.RESEND_API_KEY);
+  return selectedProvider() !== null;
 }
 
 export function emailFrom(): string {
   return process.env.EMAIL_FROM || "KRX <krx@heuv.dev>";
+}
+
+function parseFrom(): { email: string; name?: string } {
+  const raw = emailFrom();
+  const m = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(raw);
+  if (m) return { name: m[1] || undefined, email: m[2].trim() };
+  return { email: raw.trim() };
 }
 
 export function appUrl(): string {
@@ -32,11 +49,47 @@ export type SendEmailInput = {
   replyTo?: string;
 };
 
-export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; skipped?: boolean }> {
-  if (!hasEmail()) {
-    console.warn(`[email] RESEND_API_KEY not set — skipping send to ${input.to} ("${input.subject}")`);
-    return { ok: false, skipped: true };
+async function sendViaMailChannels(input: SendEmailInput): Promise<void> {
+  const from = parseFrom();
+  const personalization: Record<string, unknown> = { to: [{ email: input.to }] };
+
+  // In-request DKIM signing: private key in env, public key published in
+  // Cloudflare DNS at <selector>._domainkey.<domain>.
+  const dkimDomain = process.env.MAILCHANNELS_DKIM_DOMAIN;
+  const dkimKey = process.env.MAILCHANNELS_DKIM_PRIVATE_KEY;
+  if (dkimDomain && dkimKey) {
+    personalization.dkim_domain = dkimDomain;
+    personalization.dkim_selector = process.env.MAILCHANNELS_DKIM_SELECTOR || "mailchannels";
+    personalization.dkim_private_key = dkimKey;
   }
+
+  const replyTo = input.replyTo || process.env.EMAIL_REPLY_TO;
+  const body = {
+    personalizations: [personalization],
+    from: { email: from.email, ...(from.name ? { name: from.name } : {}) },
+    subject: input.subject,
+    content: [
+      ...(input.text ? [{ type: "text/plain", value: input.text }] : []),
+      { type: "text/html", value: input.html },
+    ],
+    ...(replyTo ? { reply_to: { email: replyTo } } : {}),
+  };
+
+  const res = await fetch(MAILCHANNELS_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(process.env.MAILCHANNELS_API_KEY ? { "X-Api-Key": process.env.MAILCHANNELS_API_KEY } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`MailChannels send failed (${res.status}): ${detail.slice(0, 200)}`);
+  }
+}
+
+async function sendViaResend(input: SendEmailInput): Promise<void> {
   const res = await fetch(RESEND_ENDPOINT, {
     method: "POST",
     headers: {
@@ -56,8 +109,18 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`Email send failed (${res.status}): ${detail.slice(0, 200)}`);
+    throw new Error(`Resend send failed (${res.status}): ${detail.slice(0, 200)}`);
   }
+}
+
+export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; skipped?: boolean }> {
+  const provider = selectedProvider();
+  if (!provider) {
+    console.warn(`[email] no provider configured — skipping send to ${input.to} ("${input.subject}")`);
+    return { ok: false, skipped: true };
+  }
+  if (provider === "mailchannels") await sendViaMailChannels(input);
+  else await sendViaResend(input);
   return { ok: true };
 }
 
