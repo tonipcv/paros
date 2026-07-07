@@ -61,7 +61,7 @@ model Workspace {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String   @default("My Workspace")
   plan      Plan     @default(FREE)
-  credits   Int      @default(500)
+  credits   Int      @default(10)
   onboardingCompleted Boolean @default(false)
   privacyMode Boolean @default(false)
   encEnabled  Boolean  @default(false)
@@ -197,4 +197,25 @@ model UsageEvent {
 
   @@index([workspaceId])
   @@map("usage_events")
+}
+
+model StripeEvent {
+  id          String    @id
+  type        String
+  status      String    @default("PROCESSING")
+  error       String?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("stripe_events")
+}
+
+model RateLimit {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart BigInt   @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@map("rate_limits")
 }

@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS "rate_limits" (
+  "key" TEXT NOT NULL,
+  "count" INTEGER NOT NULL DEFAULT 0,
+  "windowStart" BIGINT NOT NULL DEFAULT 0,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "rate_limits_pkey" PRIMARY KEY ("key")
+);

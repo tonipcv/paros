@@ -67,13 +67,34 @@ export async function findOrCreateOAuthUser(data: { name: string; email: string 
 }
 
 export async function chargeCredits(workspaceId: string, kind: string, model: string, credits: number) {
-  await prisma.$transaction([
-    prisma.workspace.update({
-      where: { id: workspaceId },
-      data: { credits: { decrement: credits } },
-    }),
-    prisma.usageEvent.create({
-      data: { workspaceId, kind, model, credits },
-    }),
-  ]);
+  const updated = await prisma.workspace.updateMany({
+    where: { id: workspaceId, credits: { gte: credits } },
+    data: { credits: { decrement: credits } },
+  });
+  if (updated.count === 0) throw new Error("Insufficient credits");
+  await prisma.usageEvent.create({
+    data: { workspaceId, kind, model, credits },
+  });
+}
+
+// Atomically reserve (debit) credits without logging usage. Returns false if
+// the workspace does not have enough credits. Pair with refundCredits/recordUsage
+// so a failed operation never leaves the user charged for nothing.
+export async function reserveCredits(workspaceId: string, credits: number): Promise<boolean> {
+  const updated = await prisma.workspace.updateMany({
+    where: { id: workspaceId, credits: { gte: credits } },
+    data: { credits: { decrement: credits } },
+  });
+  return updated.count > 0;
+}
+
+export async function refundCredits(workspaceId: string, credits: number) {
+  await prisma.workspace.update({
+    where: { id: workspaceId },
+    data: { credits: { increment: credits } },
+  });
+}
+
+export async function recordUsage(workspaceId: string, kind: string, model: string, credits: number) {
+  await prisma.usageEvent.create({ data: { workspaceId, kind, model, credits } });
 }

@@ -2,6 +2,7 @@ import { createUserWithWorkspace } from "@/lib/account";
 import { createSession, setSessionCookie } from "@/lib/auth";
 import { error, isEmail, json } from "@/lib/http";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { rateLimitShared, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +11,10 @@ export async function POST(request: Request) {
     const email = body.email;
     const password = String(body.password || "");
     if (!isEmail(email)) return error("Valid email required");
-    if (password.length < 6) return error("Password must be at least 6 characters");
+    if (password.length < 8) return error("Password must be at least 8 characters");
+    const ip = clientIp(request);
+    const rl = await rateLimitShared(`signup:ip:${ip}`, 5, 3600);
+    if (!rl.ok) return error(`Too many sign-ups — try again in ${rl.retryAfter}s`, 429);
     const human = await verifyTurnstile(body.turnstileToken, request);
     if (!human.ok) return error(human.error, 400);
 

@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { getWorkspaceForUser, chargeCredits } from "@/lib/account";
+import { getWorkspaceForUser, reserveCredits, refundCredits, recordUsage } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { error, json } from "@/lib/http";
 import { generateImage, hasOpenRouter } from "@/lib/openrouter";
@@ -49,13 +49,22 @@ export async function POST(request: Request) {
       return error("OPENROUTER_API_KEY is not configured - add it to .env to generate images", 503);
     }
 
-    const rawUrl = await generateImage(model.id, fullPrompt, inputImage);
-    const url = await uploadImageFromDataUrl(rawUrl);
-    const image = await prisma.generatedImage.create({
-      data: { workspaceId: ws.id, prompt, model: model.id, style: styleId, url },
-    });
-    await chargeCredits(ws.id, inputImage ? "image-edit" : "image", model.id, cost).catch(() => {});
-    return json({ image });
+    // Reserve credits up front (atomic). If generation fails, refund — so a
+    // failed generation is never billed and a successful one is always billed.
+    const kind = inputImage ? "image-edit" : "image";
+    if (!(await reserveCredits(ws.id, cost))) return error("Insufficient credits", 402);
+    try {
+      const rawUrl = await generateImage(model.id, fullPrompt, inputImage);
+      const url = await uploadImageFromDataUrl(rawUrl);
+      const image = await prisma.generatedImage.create({
+        data: { workspaceId: ws.id, prompt, model: model.id, style: styleId, url },
+      });
+      await recordUsage(ws.id, kind, model.id, cost).catch((e) => console.error("recordUsage failed:", e));
+      return json({ image });
+    } catch (e) {
+      await refundCredits(ws.id, cost).catch((refundErr) => console.error("refundCredits failed:", refundErr));
+      throw e;
+    }
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Image generation failed";
     return error(message, 500);
