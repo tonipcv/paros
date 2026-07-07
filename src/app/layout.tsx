@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
+import { CookieConsent } from "@/components/cookie-consent";
 import "./globals.css";
 
 const appName = "KRX";
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <Toaster theme="system" position="top-center" />
+        <CookieConsent />
       </body>
     </html>
   );
