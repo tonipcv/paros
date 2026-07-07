@@ -10,8 +10,8 @@
 //   1. Fetch the enclave attestation report (a TDX/SGX quote) from the gateway.
 //   2. Verify the quote through an attestation verifier (Phala's public verifier
 //      by default, or a self-hosted one via TEE_VERIFIER_URL).
-//   3. Extract the enclave public key bound in the quote's report_data — this key
-//      is used by the browser to seal prompts end-to-end (see e2e.sealToEnclave).
+//   3. Extract the enclave public key bound in the quote's report_data — exposed
+//      so clients can verify the enclave identity behind the E2EE mode.
 //
 // Everything is cached briefly and fails closed on any error.
 

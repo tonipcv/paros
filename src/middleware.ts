@@ -11,7 +11,6 @@ function withPrivacyHeaders(res: NextResponse, pathname: string) {
   res.headers.set("Referrer-Policy", "no-referrer");
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("X-Frame-Options", "DENY");
-  res.headers.set("Permissions-Policy", "browsing-topics=(), interest-cohort=()");
   return res;
 }
 

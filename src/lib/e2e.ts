@@ -56,49 +56,6 @@ export async function decryptText(key: CryptoKey, ivB64: string, ctB64: string):
   return dec.decode(pt);
 }
 
-// ---------------------------------------------------------------------------
-// E2EE inference sealing (ECDH-ES + AES-256-GCM).
-//
-// For the "E2EE" privacy mode, the browser encrypts the prompt to the enclave's
-// attested public key (obtained from a verified TEE attestation report). Only
-// the enclave — never our server — can derive the shared secret and decrypt.
-// This is the classic ephemeral-static ECDH envelope (HPKE-like).
-// ---------------------------------------------------------------------------
-
-export type SealedEnvelope = { epk: string; iv: string; ct: string };
-
-// Import a P-256 raw uncompressed public key (65 bytes, base64) as an ECDH key.
-async function importEnclavePublicKey(pubB64: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    "raw",
-    b64ToBytes(pubB64) as unknown as BufferSource,
-    { name: "ECDH", namedCurve: "P-256" },
-    false,
-    []
-  );
-}
-
-// Encrypt plaintext to the enclave. Returns the ephemeral public key + ciphertext.
-export async function sealToEnclave(enclavePubKeyB64: string, plaintext: string): Promise<SealedEnvelope> {
-  const enclavePub = await importEnclavePublicKey(enclavePubKeyB64);
-  const eph = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, false, ["deriveKey"]);
-  const shared = await crypto.subtle.deriveKey(
-    { name: "ECDH", public: enclavePub },
-    eph.privateKey,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt"]
-  );
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv as unknown as BufferSource },
-    shared,
-    enc.encode(plaintext) as unknown as BufferSource
-  );
-  const epkRaw = await crypto.subtle.exportKey("raw", eph.publicKey);
-  return { epk: bytesToB64(new Uint8Array(epkRaw)), iv: bytesToB64(iv), ct: bytesToB64(new Uint8Array(ct)) };
-}
-
 const CHECK_PHRASE = "htps-encryption-check-v1";
 
 export async function makeCheckBlob(key: CryptoKey) {

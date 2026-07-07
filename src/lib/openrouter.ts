@@ -19,8 +19,11 @@ function _headers() {
   return headers();
 }
 
-// Privacy: route only to providers that do NOT retain/train on data (unless disabled).
-function privacyProvider() {
+// Privacy: route only to providers that do NOT retain/train on data.
+// Applied for Private/TEE/E2EE modes; Anonymous intentionally allows any
+// provider (identity is still hidden, but the provider may retain).
+function privacyProvider(deny: boolean) {
+  if (!deny) return {};
   if (process.env.PRIVACY_NO_RETENTION === "false") return {};
   return { provider: { data_collection: "deny" as const } };
 }
@@ -34,7 +37,7 @@ export type ChatMessage = {
   content: string | ContentPart[];
 };
 
-export type ChatOptions = { temperature?: number; top_p?: number; max_tokens?: number };
+export type ChatOptions = { temperature?: number; top_p?: number; max_tokens?: number; dataCollectionDeny?: boolean };
 
 /** Stream to any OpenAI-compatible endpoint (full control over baseUrl/apiKey). */
 export async function streamChatTo(
@@ -72,7 +75,7 @@ export async function streamChat(model: string, messages: ChatMessage[], options
       model,
       messages,
       stream: true,
-      ...privacyProvider(),
+      ...privacyProvider(options.dataCollectionDeny !== false),
       ...(options.temperature != null ? { temperature: options.temperature } : {}),
       ...(options.top_p != null ? { top_p: options.top_p } : {}),
       ...(options.max_tokens != null ? { max_tokens: options.max_tokens } : {}),

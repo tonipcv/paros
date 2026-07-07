@@ -149,7 +149,7 @@ export async function POST(request: Request) {
             const teeModel = model.id.replace(/^(openrouter|teeprovider)\//, "");
             respBody = await streamChatTo(teeModel, history, ep.baseUrl, ep.apiKey, { temperature });
           } else {
-            respBody = await streamChat(model.id, history, { temperature });
+            respBody = await streamChat(model.id, history, { temperature, dataCollectionDeny: privacyMode !== "anonymous" });
           }
           const reader = respBody.getReader();
           const decoder = new TextDecoder();
