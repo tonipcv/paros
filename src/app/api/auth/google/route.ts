@@ -12,7 +12,13 @@ export async function GET() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3012";
   const state = randomUUID();
   const store = await cookies();
-  store.set("oauth_state", state, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 600 });
+  store.set("oauth_state", state, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 600,
+  });
 
   const params = new URLSearchParams({
     client_id: clientId,

@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getWorkspaceForUser } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-import { error, json } from "@/lib/http";
+import { error, json, handleRouteError } from "@/lib/http";
 
 // Persists client-side encrypted messages. Server stores only ciphertext.
 export async function POST(request: Request) {
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
     ]);
     return json({ ok: true, count: data.length });
-  } catch (e: any) {
-    return error(e.message, 401);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }

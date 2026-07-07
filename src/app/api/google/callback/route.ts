@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     });
     const profile = await profileRes.json();
     if (!profile.email) throw new Error("No email in profile");
+    if (profile.verified_email === false) throw new Error("Email not verified");
 
     const user = await findOrCreateOAuthUser({ name: profile.name || "", email: profile.email });
     const token = await createSession(user.id);

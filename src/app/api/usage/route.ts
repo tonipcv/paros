@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getWorkspaceForUser } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-import { error, json } from "@/lib/http";
+import { error, json, handleRouteError } from "@/lib/http";
 
 export async function GET() {
   try {
@@ -28,7 +28,7 @@ export async function GET() {
       convoCount,
       events: events.slice(0, 20),
     });
-  } catch (e: any) {
-    return error(e.message, 401);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }

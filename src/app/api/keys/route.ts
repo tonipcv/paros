@@ -1,7 +1,7 @@
 import { requireUser, generateApiKey } from "@/lib/auth";
 import { getWorkspaceForUser } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-import { error, json } from "@/lib/http";
+import { error, json, handleRouteError } from "@/lib/http";
 
 export async function GET() {
   try {
@@ -14,8 +14,8 @@ export async function GET() {
       select: { id: true, name: true, keyPrefix: true, lastUsedAt: true, createdAt: true },
     });
     return json({ keys });
-  } catch (e: any) {
-    return error(e.message, 401);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }
 
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       data: { workspaceId: ws.id, name, keyHash: hash, keyPrefix: prefix },
     });
     return json({ id: record.id, name: record.name, key });
-  } catch (e: any) {
-    return error(e.message, 401);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }

@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getWorkspaceForUser } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-import { error, json } from "@/lib/http";
+import { error, json, handleRouteError } from "@/lib/http";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -15,8 +15,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     });
     if (!conversation) return error("Not found", 404);
     return json({ conversation });
-  } catch (e: any) {
-    return error(e.message, 401);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }
 
@@ -34,8 +34,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const result = await prisma.conversation.updateMany({ where: { id, workspaceId: ws.id }, data });
     if (result.count === 0) return error("Not found", 404);
     return json({ ok: true });
-  } catch (e: any) {
-    return error(e.message, 401);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }
 
@@ -47,7 +47,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     if (!ws) return error("Workspace not found", 404);
     await prisma.conversation.deleteMany({ where: { id, workspaceId: ws.id } });
     return json({ ok: true });
-  } catch (e: any) {
-    return error(e.message, 401);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }

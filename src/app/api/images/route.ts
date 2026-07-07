@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getWorkspaceForUser, reserveCredits, refundCredits, recordUsage } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-import { error, json } from "@/lib/http";
+import { error, json, handleRouteError } from "@/lib/http";
 import { generateImage, hasOpenRouter } from "@/lib/openrouter";
 import { uploadImageFromDataUrl } from "@/lib/storage";
 import { IMAGE_MODELS, IMAGE_STYLES } from "@/lib/models";
@@ -20,8 +20,8 @@ export async function GET() {
       take: 60,
     });
     return json({ images });
-  } catch (e: any) {
-    return error(e.message, 401);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }
 

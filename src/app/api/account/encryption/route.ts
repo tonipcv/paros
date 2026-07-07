@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { getWorkspaceForUser } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-import { error, json } from "@/lib/http";
+import { error, json, handleRouteError } from "@/lib/http";
 
 export async function GET() {
   try {
@@ -14,8 +14,8 @@ export async function GET() {
       checkIv: ws.encCheckIv,
       checkCt: ws.encCheckCt,
     });
-  } catch (e: any) {
-    return error(e.message, 401);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }
 
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       data: { encEnabled: true, encSalt: salt, encCheckIv: checkIv, encCheckCt: checkCt },
     });
     return json({ ok: true });
-  } catch (e: any) {
-    return error(e.message, 401);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }
