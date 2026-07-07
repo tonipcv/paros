@@ -31,7 +31,7 @@ import type { ChatModel } from "@/lib/models";
 import { VOICES } from "@/lib/models";
 import { Markdown } from "@/components/markdown";
 import { encryptText, decryptText } from "@/lib/e2e";
-import { sealChat, openChatReply } from "@/lib/e2e-seal";
+import { sealChat, openStreamDelta } from "@/lib/e2e-seal";
 import { phalaE2eeModel } from "@/lib/privacy-router";
 import {
   listLocalConversations,
@@ -350,10 +350,40 @@ export default function ChatPage() {
           }),
           signal: controller.signal,
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || "E2EE request failed");
-        acc = await openChatReply(sealed, data);
-        setMessages((m) => m.map((msg) => (msg.id === assistantId ? { ...msg, content: acc } : msg)));
+        if (!res.ok || !res.body) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "E2EE request failed");
+        }
+        // Stream: decrypt each sealed SSE delta on-device as it arrives.
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data:")) continue;
+            const payload = trimmed.slice(5).trim();
+            if (payload === "[DONE]") continue;
+            let parsed: { id?: string; choices?: { index?: number; delta?: { content?: string } }[] };
+            try {
+              parsed = JSON.parse(payload);
+            } catch {
+              continue;
+            }
+            const choice = parsed.choices?.[0];
+            const sealedDelta = choice?.delta?.content;
+            if (typeof sealedDelta === "string" && sealedDelta.length) {
+              const plain = await openStreamDelta(sealed, parsed.id || "", choice?.index ?? 0, sealedDelta);
+              acc += plain;
+              setMessages((m) => m.map((msg) => (msg.id === assistantId ? { ...msg, content: acc } : msg)));
+            }
+          }
+        }
         if (!temporary) {
           await persistTurn(userMsg, { id: assistantId, role: "assistant", content: acc });
         }

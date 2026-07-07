@@ -126,7 +126,7 @@ export async function sealChat(
   };
 }
 
-// Decrypt the enclave's reply for choice 0's message content.
+// Decrypt the enclave's reply for choice 0's message content (buffered).
 export async function openChatReply(
   session: Pick<SealedRequest, "clientPrivHex" | "model" | "nonce" | "ts">,
   response: { id?: string; choices?: { message?: { content?: string } }[] }
@@ -137,4 +137,15 @@ export async function openChatReply(
   const clientPriv = fromHex(session.clientPrivHex);
   const aad = resAad(session.model, id, 0, "content", session.nonce, session.ts);
   return openField(clientPriv, raw, aad);
+}
+
+// Decrypt one streamed SSE delta's sealed `content` field.
+export async function openStreamDelta(
+  session: Pick<SealedRequest, "clientPrivHex" | "model" | "nonce" | "ts">,
+  id: string,
+  choiceIndex: number,
+  blobHex: string
+): Promise<string> {
+  const aad = resAad(session.model, id, choiceIndex, "content", session.nonce, session.ts);
+  return openField(fromHex(session.clientPrivHex), blobHex, aad);
 }

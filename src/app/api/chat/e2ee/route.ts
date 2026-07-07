@@ -69,18 +69,23 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
           ...e2eeHeaders,
         },
-        body: JSON.stringify({ model: teeModel, messages: body.messages, stream: false, max_tokens: maxTokens }),
+        body: JSON.stringify({ model: teeModel, messages: body.messages, stream: true, max_tokens: maxTokens }),
       });
-      const text = await upstream.text();
-      if (!upstream.ok) {
+      if (!upstream.ok || !upstream.body) {
+        const detail = await upstream.text().catch(() => "");
+        console.error("E2EE enclave error", upstream.status, detail.slice(0, 300));
         await refundCredits(ws.id, creditModel.credits).catch((e) => console.error("refundCredits failed:", e));
         return error(`Enclave error (${upstream.status})`, 502);
       }
       await recordUsage(ws.id, "chat-e2ee", creditModel.id, creditModel.credits).catch((e) => console.error("recordUsage failed:", e));
-      // Relay the still-encrypted enclave reply verbatim; the client decrypts it.
-      return new Response(text, {
+      // Relay the still-encrypted SSE stream verbatim; the client decrypts each delta.
+      return new Response(upstream.body, {
         status: 200,
-        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        headers: {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          "X-Accel-Buffering": "no",
+        },
       });
     } catch (e) {
       await refundCredits(ws.id, creditModel.credits).catch((refundErr) => console.error("refundCredits failed:", refundErr));
