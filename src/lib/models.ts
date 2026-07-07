@@ -134,9 +134,47 @@ export const IMAGE_MODELS = [
   { id: "openai/gpt-5-image-mini", name: "GPT Image Mini", credits: 8 },
 ];
 
-export const PLANS = [
-  { id: "FREE", name: "Free", price: 0, credits: 10, features: ["10 credits/mo", "Base chat models", "Local storage only"] },
-  { id: "STARTER", name: "Pro", price: 18, credits: 100, priceEnv: "STRIPE_PRICE_STARTER", priceEnvYearly: "STRIPE_PRICE_STARTER_YEARLY", features: ["100 credits/mo", "All chat models", "Image generation", "API access"] },
-  { id: "PRO", name: "Pro+", price: 68, credits: 500, priceEnv: "STRIPE_PRICE_PRO", priceEnvYearly: "STRIPE_PRICE_PRO_YEARLY", features: ["500 credits/mo", "Priority inference", "Uncensored models", "Higher rate limits"] },
-  { id: "MAX", name: "Max", price: 200, credits: 2500, priceEnv: "STRIPE_PRICE_MAX", priceEnvYearly: "STRIPE_PRICE_MAX_YEARLY", features: ["2,500 credits/mo", "Dedicated throughput", "Early access models", "Priority support"] },
+export const YEARLY_DISCOUNT = 0.9;
+
+export type BillingCycle = "monthly" | "yearly";
+export type PlanId = "FREE" | "STARTER" | "PRO" | "MAX";
+export type PlanConfig = {
+  id: PlanId;
+  name: string;
+  price: number;
+  credits: number;
+  priceEnv?: string;
+  priceEnvYearly?: string;
+  features: string[];
+};
+
+export function formatCredits(value: number) {
+  return value.toLocaleString("en-US");
+}
+
+export function formatPrice(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+export function annualPlanPrice(price: number) {
+  return Math.round(price * 12 * YEARLY_DISCOUNT * 100) / 100;
+}
+
+export function annualMonthlyEquivalent(price: number) {
+  return annualPlanPrice(price) / 12;
+}
+
+export const PLANS: PlanConfig[] = [
+  { id: "FREE", name: "Free", price: 0, credits: 10, features: [`${formatCredits(10)} credits/mo`, "Base chat models", "Local storage only"] },
+  { id: "STARTER", name: "Pro", price: 18, credits: 100, priceEnv: "STRIPE_PRICE_STARTER", priceEnvYearly: "STRIPE_PRICE_STARTER_YEARLY", features: [`${formatCredits(100)} credits/mo`, "All chat models", "Image generation", "API access"] },
+  { id: "PRO", name: "Pro+", price: 68, credits: 500, priceEnv: "STRIPE_PRICE_PRO", priceEnvYearly: "STRIPE_PRICE_PRO_YEARLY", features: [`${formatCredits(500)} credits/mo`, "Priority inference", "Uncensored models", "Higher rate limits"] },
+  { id: "MAX", name: "Max", price: 200, credits: 2500, priceEnv: "STRIPE_PRICE_MAX", priceEnvYearly: "STRIPE_PRICE_MAX_YEARLY", features: [`${formatCredits(2500)} credits/mo`, "Dedicated throughput", "Early access models", "Priority support"] },
 ];
+
+export function paidPlans() {
+  return PLANS.filter((plan) => plan.priceEnv);
+}
+
+export function findPlan(id: string | null | undefined) {
+  return PLANS.find((plan) => plan.id === id);
+}

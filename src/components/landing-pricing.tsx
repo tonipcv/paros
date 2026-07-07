@@ -1,19 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check } from "lucide-react";
+import { annualPlanPrice, formatCredits, formatPrice, paidPlans, type BillingCycle } from "@/lib/models";
 
-type BillingCycle = "monthly" | "yearly";
-
-const plans = [
-  {
-    id: "STARTER",
-    name: "Pro",
-    monthly: "$18",
-    yearly: "$194.40",
-    desc: "Your private AI studio - every model, every medium, no limits.",
+const planMarketing: Record<string, { desc: string; cta: string; popular?: boolean; features: (credits: number) => string[] }> = {
+  STARTER: {
+    desc: "All models, full platform access.",
     cta: "Get Pro",
-    features: [
+    features: (credits) => [
       "All Pro and Advanced models",
       "Unlimited text prompts",
       "1,000 images per day",
@@ -22,44 +17,49 @@ const plans = [
       "Character creation",
       "Extended context windows for deep work and longer conversations",
       "Encrypted chat backup and restore",
-      "100 credits / month for video, music, premium models, and API",
+      `${formatCredits(credits)} credits / month for video, music, premium models, and API`,
       "API access",
     ],
   },
-  {
-    id: "PRO",
-    name: "Pro+",
-    monthly: "$68",
-    yearly: "$734.40",
-    desc: "Everything in Pro, scaled for serious creators and users.",
+  PRO: {
+    desc: "Higher limits and credit banking.",
     cta: "Get Pro+",
     popular: true,
-    features: [
+    features: (credits) => [
       "Everything in Pro",
       "Higher image generation limits on Venice Pro models",
-      "7,500 credits / month for video, music, frontier image generation, LLMs, and API",
+      `${formatCredits(credits)} credits / month for video, music, frontier image generation, LLMs, and API`,
       "2-month credit banking",
       "Annual billing discount",
     ],
   },
-  {
-    id: "MAX",
-    name: "Max",
-    monthly: "$200",
-    yearly: "$2,160",
-    desc: "Everything in Plus - for the ultimate access to Venice power users.",
+  MAX: {
+    desc: "Maximum capacity and dedicated throughput.",
     cta: "Get Max",
-    features: [
+    features: (credits) => [
       "Everything in Pro+",
       "Highest image generation limits on Venice Pro models",
-      "22,500 credits / month for video, music, frontier image generation, frontier LLMs, and API",
+      `${formatCredits(credits)} credits / month for video, music, frontier image generation, frontier LLMs, and API`,
       "3-month credit banking",
       "Annual billing discount",
     ],
   },
-];
+};
 
 export function LandingPricing() {
+  const plans = useMemo(() => paidPlans().map((p) => {
+    const m = planMarketing[p.id];
+    return {
+      id: p.id,
+      name: p.name,
+      monthly: p.price,
+      yearly: annualPlanPrice(p.price),
+      desc: m?.desc ?? "",
+      cta: m?.cta ?? "Get Started",
+      popular: m?.popular ?? false,
+      features: m?.features(p.credits) ?? p.features,
+    };
+  }), []);
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -93,11 +93,8 @@ export function LandingPricing() {
         <div className="mx-auto max-w-[720px] text-center">
           <p className="text-[13px] text-[var(--landing-faint)]">Pricing</p>
           <h2 className="font-display mt-3 text-[30px] font-medium leading-[1.06] text-[var(--landing-text)] sm:text-[40px]">
-            Simple pricing. No surprises.
+            Plans
           </h2>
-          <p className="mt-4 text-[15px] leading-7 text-[var(--landing-muted)]">
-            Monthly plans match Venice pricing. Yearly billing saves 10% and credits roll forward on paid plans.
-          </p>
           <div className="mx-auto mt-7 inline-flex rounded-full bg-[var(--landing-card)] p-1 text-[12px] shadow-[var(--landing-card-shadow)]">
             <button
               type="button"
@@ -134,7 +131,7 @@ export function LandingPricing() {
                 <p className="mt-3 min-h-[48px] max-w-[280px] text-[13px] leading-6 text-[var(--landing-muted)]">{plan.desc}</p>
                 <div className="mt-7 flex items-end gap-1">
                   <span className="text-[38px] font-semibold leading-none text-[var(--landing-text)]">
-                    {cycle === "monthly" ? plan.monthly : plan.yearly}
+                    ${formatPrice(cycle === "monthly" ? plan.monthly : plan.yearly)}
                   </span>
                   <span className="pb-1.5 text-[14px] text-[var(--landing-faint)]">/{cycle === "monthly" ? "mo" : "yr"}</span>
                 </div>

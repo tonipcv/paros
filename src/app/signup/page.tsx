@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TurnstileWidget } from "@/components/turnstile-widget";
+import { findPlan, formatCredits } from "@/lib/models";
 
 const appName = "KRX";
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+const freeCredits = findPlan("FREE")?.credits ?? 10;
 
 export default function SignupPage() {
   const router = useRouter();
@@ -62,7 +64,7 @@ export default function SignupPage() {
 
         <div className="w-full rounded-[28px] bg-[var(--landing-card)] p-5 shadow-[var(--landing-card-shadow)] sm:p-7">
         <h2 className="font-display text-[32px] font-medium leading-tight text-[var(--landing-text)]">Create account</h2>
-        <p className="mb-7 mt-2 text-sm text-[var(--landing-faint)]">Start with 500 free credits.</p>
+        <p className="mb-7 mt-2 text-sm text-[var(--landing-faint)]">Start with {formatCredits(freeCredits)} free credits.</p>
 
         <a href="/api/auth/google" className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--landing-chip)] text-sm font-medium text-[var(--landing-body)] transition hover:bg-[var(--landing-chip)] hover:text-[var(--landing-text)]">
           <svg className="h-4 w-4" viewBox="0 0 24 24">

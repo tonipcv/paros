@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
-import { PLANS } from "@/lib/models";
+import { annualMonthlyEquivalent, annualPlanPrice, formatPrice, PLANS, type BillingCycle } from "@/lib/models";
 
-type BillingCycle = "monthly" | "yearly";
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 export default function BillingPage() {
   const { workspace, load } = useAppStore();
@@ -32,8 +34,8 @@ export default function BillingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
       window.location.href = data.url;
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(errorMessage(e, "Failed to open billing portal"));
     } finally {
       setLoading(null);
     }
@@ -50,14 +52,12 @@ export default function BillingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
       window.location.href = data.url;
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(errorMessage(e, "Failed to open checkout"));
     } finally {
       setLoading(null);
     }
   }
-
-  const discount = billingCycle === "yearly" ? 0.83 : 1; // ~2 months free
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
@@ -93,7 +93,7 @@ export default function BillingPage() {
             >
               Yearly
               <span className="rounded bg-highlight/20 px-1.5 py-0.5 text-[10px] text-highlight">
-                Save ~17%
+                Save 10%
               </span>
             </button>
           </div>
@@ -103,18 +103,18 @@ export default function BillingPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {PLANS.map((plan) => {
           const current = workspace?.plan === plan.id;
-          const price = billingCycle === "yearly" ? Math.round(plan.price * 12 * discount) / 12 : plan.price;
-          const yearlyTotal = billingCycle === "yearly" ? Math.round(plan.price * 12 * discount) : null;
+          const price = billingCycle === "yearly" ? annualMonthlyEquivalent(plan.price) : plan.price;
+          const yearlyTotal = billingCycle === "yearly" ? annualPlanPrice(plan.price) : null;
           return (
             <div key={plan.id} className={`card flex flex-col p-5 ${current ? "border-highlight/40" : ""}`}>
               <p className="text-[13px] font-semibold text-primary">{plan.name}</p>
               <p className="mt-2">
-                <span className="text-2xl font-semibold text-grad-stat">${price}</span>
+                <span className="text-2xl font-semibold text-grad-stat">${formatPrice(price)}</span>
                 <span className="text-xs text-muted">/mo</span>
               </p>
               {yearlyTotal && (
                 <p className="text-[10px] text-muted">
-                  ${yearlyTotal}/year billed annually
+                  ${formatPrice(yearlyTotal)}/year billed annually
                 </p>
               )}
               <ul className="mt-4 flex-1 space-y-2">

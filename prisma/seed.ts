@@ -1,7 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import { randomBytes, scryptSync } from "node:crypto";
+import { findPlan } from "../src/lib/models";
 
 const prisma = new PrismaClient();
+const freeCredits = findPlan("FREE")?.credits ?? 10;
 
 function hashPassword(value: string) {
   const salt = randomBytes(16).toString("hex");
@@ -22,7 +24,7 @@ async function main() {
       email,
       name: "Demo User",
       password: hashPassword(password),
-      workspace: { create: { name: "Demo Workspace", plan: "FREE", credits: 500 } },
+      workspace: { create: { name: "Demo Workspace", plan: "FREE", credits: freeCredits } },
     },
   });
   console.log(`Seeded demo user: ${email} / ${password}`);
