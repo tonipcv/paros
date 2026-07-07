@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { chargeCredits } from "@/lib/account";
+import { reserveCredits, refundCredits, recordUsage } from "@/lib/account";
 import { generateImage, hasOpenRouter } from "@/lib/openrouter";
 import { uploadImageFromDataUrl } from "@/lib/storage";
 import { IMAGE_MODELS } from "@/lib/models";
@@ -25,19 +25,22 @@ export async function POST(request: Request) {
   if (!prompt) return Response.json({ error: { message: "prompt required" } }, { status: 400 });
 
   const model = IMAGE_MODELS.find((m) => m.id === body.model) || IMAGE_MODELS[0];
-  if (auth.workspace.credits < model.credits) {
+
+  // Reserve credits atomically; refund if generation fails.
+  if (!(await reserveCredits(auth.workspace.id, model.credits))) {
     return Response.json({ error: { message: "Insufficient credits" } }, { status: 402 });
   }
-
   try {
     const rawUrl = await generateImage(model.id, prompt);
     const url = await uploadImageFromDataUrl(rawUrl);
     await prisma.generatedImage
       .create({ data: { workspaceId: auth.workspace.id, prompt, model: model.id, style: "none", url } })
-      .catch(() => {});
-    await chargeCredits(auth.workspace.id, "api-image", model.id, model.credits).catch(() => {});
+      .catch((e) => console.error("generated image persistence failed:", e));
+    await recordUsage(auth.workspace.id, "api-image", model.id, model.credits).catch((e) => console.error("recordUsage failed:", e));
     return Response.json({ created: Math.floor(Date.now() / 1000), data: [{ url }] });
-  } catch (e: any) {
-    return Response.json({ error: { message: e.message } }, { status: 500 });
+  } catch (e) {
+    await refundCredits(auth.workspace.id, model.credits).catch((refundErr) => console.error("refundCredits failed:", refundErr));
+    console.error("api image generation failed:", e);
+    return Response.json({ error: { message: "Image generation failed" } }, { status: 500 });
   }
 }

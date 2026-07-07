@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { getWorkspaceForUser, chargeCredits } from "@/lib/account";
+import { getWorkspaceForUser, reserveCredits, refundCredits, recordUsage } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { error } from "@/lib/http";
 import { streamChat, streamChatTo, hasOpenRouter, type ChatMessage, type ContentPart } from "@/lib/openrouter";
@@ -80,6 +80,9 @@ export async function POST(request: Request) {
     }
   }
 
+  // Reserve credits atomically before inference; refund below if the stream fails.
+  if (!(await reserveCredits(ws.id, model.credits))) return error("Insufficient credits", 402);
+
   let priorMessages: { role: string; content: string | ContentPart[] }[] = [];
   let systemPrompt: string | null = null;
   let temperature = 0.7;
@@ -128,6 +131,7 @@ export async function POST(request: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       let full = "";
+      let ok = false;
       try {
         if (!hasOpenRouter()) {
           const demo = `OPENROUTER_API_KEY is not configured. Add your key to .env for real responses.\n\nYou asked: "${content}"`;
@@ -136,13 +140,12 @@ export async function POST(request: Request) {
             controller.enqueue(encoder.encode(chunk));
             await new Promise((r) => setTimeout(r, 12));
           }
+          ok = true;
         } else {
           let respBody: ReadableStream;
           if (isTeeOrE2ee(privacyMode)) {
-            // Attestation was already verified above; provider is guaranteed present.
             const ep = endpoints()[privacyMode];
             if (!ep) throw new Error("TEE provider not configured");
-            // Map to model IDs the TEE provider understands (strip duplicate prefixes)
             const teeModel = model.id.replace(/^(openrouter|teeprovider)\//, "");
             respBody = await streamChatTo(teeModel, history, ep.baseUrl, ep.apiKey, { temperature });
           } else {
@@ -174,8 +177,10 @@ export async function POST(request: Request) {
               }
             }
           }
+          ok = true;
         }
       } catch (e: any) {
+        ok = false;
         const msg = `\n\n[error] ${e.message || "stream failed"}`;
         full += msg;
         controller.enqueue(encoder.encode(msg));
@@ -183,11 +188,14 @@ export async function POST(request: Request) {
         if (!skipStore && conversationId) {
           await prisma.message
             .create({ data: { conversationId, role: "assistant", content: full, model: model.id } })
-            .catch(() => {});
+            .catch((e) => console.error("assistant message persistence failed:", e));
         }
-        // Zero-retention: drop the plaintext buffer immediately once streamed.
         if (skipStore) full = "";
-        await chargeCredits(ws.id, "chat", model.id, model.credits).catch(() => {});
+        if (ok) {
+          await recordUsage(ws.id, "chat", model.id, model.credits).catch((e) => console.error("recordUsage failed:", e));
+        } else {
+          await refundCredits(ws.id, model.credits).catch((e) => console.error("refundCredits failed:", e));
+        }
         controller.close();
       }
     },
