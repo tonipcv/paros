@@ -5,6 +5,8 @@ import {
   sendPaymentConfirmedEmail,
   sendPaymentFailedEmail,
   sendSubscriptionCanceledEmail,
+  sendRenewalReceiptEmail,
+  sendPlanChangedEmail,
 } from "@/lib/emails";
 import type Stripe from "stripe";
 
@@ -103,6 +105,12 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     where: { id: sub.workspaceId },
     data: { credits: { increment: p.credits } },
   });
+  const to = await workspaceEmail(sub.workspaceId);
+  if (to) {
+    await sendRenewalReceiptEmail(to, { planName: p.name, credits: p.credits }).catch((e) =>
+      console.error("renewal receipt email failed:", e)
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -192,6 +200,7 @@ export async function POST(request: Request) {
           where: { stripeSubscriptionId: subscription.id },
         });
         if (sub) {
+          const planChanged = Boolean(priceId) && priceId !== sub.stripePriceId;
           await prisma.subscription.update({
             where: { id: sub.id },
             data: {
@@ -208,6 +217,14 @@ export async function POST(request: Request) {
               where: { id: sub.workspaceId },
               data: { plan: plan.id },
             });
+            if (planChanged) {
+              const to = await workspaceEmail(sub.workspaceId);
+              if (to) {
+                await sendPlanChangedEmail(to, { planName: plan.name }).catch((e) =>
+                  console.error("plan changed email failed:", e)
+                );
+              }
+            }
           }
         }
         break;

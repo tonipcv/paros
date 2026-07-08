@@ -4,6 +4,7 @@ import { error, isEmail, json } from "@/lib/http";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { rateLimitShared, clientIp } from "@/lib/rate-limit";
 import { sendWelcomeEmail } from "@/lib/emails";
+import { issueEmailVerification } from "@/lib/verification";
 
 export const runtime = "nodejs";
 
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
     await setSessionCookie(token);
 
     sendWelcomeEmail(String(email).toLowerCase(), name).catch((e) => console.error("welcome email failed:", e));
+    issueEmailVerification(user.id, String(email).toLowerCase()).catch((e) => console.error("verify email failed:", e));
 
     return json({ ok: true });
   } catch (e: unknown) {

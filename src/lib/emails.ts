@@ -153,3 +153,127 @@ export async function sendApiKeyCreatedEmail(to: string, keyName: string) {
     text: `A new API key "${keyName}" was created on your ${appName} account on ${fmtDate()}. If this wasn't you, revoke it: ${appUrl()}/keys`,
   });
 }
+
+export async function sendApiKeyRevokedEmail(to: string, keyName: string) {
+  return sendEmail({
+    to,
+    subject: "An API key was revoked",
+    html: emailLayout({
+      title: "An API key was revoked",
+      preheader: "An API key was removed from your account.",
+      bodyHtml:
+        paragraph("Hello,") +
+        paragraph(
+          `The API key named <b>${keyName}</b> was revoked from your ${appName} account on <b>${fmtDate()}</b> and can no longer be used.`
+        ) +
+        `<p style="margin:0 0 8px;">${button(`${appUrl()}/keys`, "Manage API keys")}</p>`,
+      footer: `If you did not revoke this key, secure your account and contact ${CONTACT}.`,
+    }),
+    text: `The API key "${keyName}" was revoked from your ${appName} account on ${fmtDate()}. Manage keys: ${appUrl()}/keys`,
+  });
+}
+
+export async function sendVerifyEmail(to: string, link: string) {
+  return sendEmail({
+    to,
+    subject: "Verify your email address",
+    html: emailLayout({
+      title: "Verify your email address",
+      preheader: "Confirm your email to secure your account.",
+      bodyHtml:
+        paragraph("Hello,") +
+        paragraph(
+          `Please confirm that this is the email address for your ${appName} account by selecting the button below. This link expires in <b>24 hours</b>.`
+        ) +
+        `<p style="margin:0 0 22px;">${button(link, "Verify email")}</p>` +
+        paragraph("If the button above does not work, copy and paste the following link into your browser:") +
+        muted(link),
+      footer: `If you did not create a ${appName} account, you can safely ignore this email.`,
+    }),
+    text: `Verify your email for ${appName} (expires in 24 hours):\n${link}`,
+  });
+}
+
+export async function sendNewSignInEmail(
+  to: string,
+  ctx: { ip?: string; userAgent?: string } = {}
+) {
+  const details =
+    (ctx.ip ? `IP address: ${ctx.ip}<br>` : "") + (ctx.userAgent ? `Device: ${ctx.userAgent}` : "");
+  return sendEmail({
+    to,
+    subject: "New sign-in to your account",
+    html: emailLayout({
+      title: "New sign-in to your account",
+      preheader: "We noticed a new sign-in to your account.",
+      bodyHtml:
+        paragraph("Hello,") +
+        paragraph(`Your ${appName} account was signed in to on <b>${fmtDate()}</b>.`) +
+        (details ? muted(details) + `<div style="height:16px"></div>` : "") +
+        paragraph("If this was you, no action is required.") +
+        `<p style="margin:0 0 8px;">${button(`${appUrl()}/forgot`, "Secure your account")}</p>`,
+      footer: `If you do not recognize this activity, reset your password immediately and contact ${CONTACT}.`,
+    }),
+    text: `New sign-in to your ${appName} account on ${fmtDate()}.${ctx.ip ? ` IP: ${ctx.ip}.` : ""} If this wasn't you, reset your password: ${appUrl()}/forgot`,
+  });
+}
+
+export async function sendRenewalReceiptEmail(
+  to: string,
+  opts: { planName: string; credits: number }
+) {
+  return sendEmail({
+    to,
+    subject: `Your ${appName} subscription renewed`,
+    html: emailLayout({
+      title: "Subscription renewed",
+      preheader: `Your ${opts.planName} plan renewed for a new billing period.`,
+      bodyHtml:
+        paragraph("Hello,") +
+        paragraph(
+          `Your <b>${opts.planName}</b> subscription has renewed for a new billing period, and <b>${opts.credits.toLocaleString("en-US")} credits</b> have been added to your workspace.`
+        ) +
+        `<p style="margin:0 0 8px;">${button(`${appUrl()}/billing`, "View billing")}</p>`,
+      footer: `A receipt for this payment is available from your billing portal. For questions, contact ${CONTACT}.`,
+    }),
+    text: `Your ${appName} ${opts.planName} plan renewed. ${opts.credits} credits added. Billing: ${appUrl()}/billing`,
+  });
+}
+
+export async function sendPlanChangedEmail(to: string, opts: { planName: string }) {
+  return sendEmail({
+    to,
+    subject: "Your plan was updated",
+    html: emailLayout({
+      title: "Your plan was updated",
+      preheader: `Your subscription is now on the ${opts.planName} plan.`,
+      bodyHtml:
+        paragraph("Hello,") +
+        paragraph(
+          `Your ${appName} subscription has been updated. Your account is now on the <b>${opts.planName}</b> plan, effective ${fmtDate()}.`
+        ) +
+        `<p style="margin:0 0 8px;">${button(`${appUrl()}/billing`, "View billing")}</p>`,
+      footer: `If you did not request this change, contact ${CONTACT}.`,
+    }),
+    text: `Your ${appName} plan was updated to ${opts.planName}. Billing: ${appUrl()}/billing`,
+  });
+}
+
+export async function sendAccountDeletedEmail(to: string) {
+  return sendEmail({
+    to,
+    subject: "Your account has been deleted",
+    html: emailLayout({
+      title: "Your account has been deleted",
+      preheader: "Confirmation that your account and data were removed.",
+      bodyHtml:
+        paragraph("Hello,") +
+        paragraph(
+          `This confirms that your ${appName} account was deleted on <b>${fmtDate()}</b>, along with its associated data. Any active subscription has been canceled.`
+        ) +
+        paragraph("We're sorry to see you go. You're welcome back any time."),
+      footer: `If you did not request this deletion, contact ${CONTACT} immediately.`,
+    }),
+    text: `Your ${appName} account was deleted on ${fmtDate()}. If this wasn't you, contact ${CONTACT}.`,
+  });
+}

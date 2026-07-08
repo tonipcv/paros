@@ -1,6 +1,9 @@
 import { currentUser, clearSessionCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { error, json } from "@/lib/http";
+import { sendAccountDeletedEmail } from "@/lib/emails";
+
+export const runtime = "nodejs";
 
 export async function PATCH(request: Request) {
   const user = await currentUser();
@@ -27,7 +30,11 @@ export async function PATCH(request: Request) {
 export async function DELETE() {
   const user = await currentUser();
   if (!user) return error("Not authenticated", 401);
+  const email = user.email;
   await prisma.user.delete({ where: { id: user.id } });
   await clearSessionCookie();
+  if (email) {
+    sendAccountDeletedEmail(email).catch((e) => console.error("account deleted email failed:", e));
+  }
   return json({ ok: true });
 }

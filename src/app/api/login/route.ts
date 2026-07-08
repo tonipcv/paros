@@ -3,6 +3,9 @@ import { createSession, setSessionCookie, verifyPasswordHash } from "@/lib/auth"
 import { error, isEmail, json } from "@/lib/http";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { rateLimitShared, clientIp } from "@/lib/rate-limit";
+import { sendNewSignInEmail } from "@/lib/emails";
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
@@ -23,8 +26,19 @@ export async function POST(request: Request) {
     }
     const token = await createSession(user.id);
     await setSessionCookie(token);
+
+    // Security: alert on a sign-in from a new IP (deduped to ~once per 30 days).
+    const firstFromIp = await rateLimitShared(`signin:${user.id}:${ip}`, 1, 30 * 24 * 3600);
+    if (firstFromIp.ok) {
+      const ua = request.headers.get("user-agent")?.slice(0, 160) || undefined;
+      sendNewSignInEmail(user.email, { ip: ip === "unknown" ? undefined : ip, userAgent: ua }).catch((e) =>
+        console.error("new sign-in email failed:", e)
+      );
+    }
+
     return json({ ok: true });
-  } catch (e: any) {
-    return error(e.message || "Login failed", 401);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Login failed";
+    return error(message, 401);
   }
 }

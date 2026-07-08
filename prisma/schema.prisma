@@ -40,6 +40,7 @@ model User {
   workspace Workspace?
   sessions  Session[]
   passwordResets PasswordResetToken[]
+  emailVerifications EmailVerificationToken[]
 
   @@map("users")
 }
@@ -232,4 +233,17 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("email_verification_tokens")
 }

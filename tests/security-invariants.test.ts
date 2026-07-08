@@ -106,18 +106,36 @@ test("transactional emails are wired into the right flows", () => {
     "sendPaymentFailedEmail",
     "sendSubscriptionCanceledEmail",
     "sendApiKeyCreatedEmail",
+    "sendApiKeyRevokedEmail",
+    "sendVerifyEmail",
+    "sendNewSignInEmail",
+    "sendRenewalReceiptEmail",
+    "sendPlanChangedEmail",
+    "sendAccountDeletedEmail",
   ]) {
     assert.match(emails, new RegExp(`export async function ${fn}\\b`), `emails.ts must export ${fn}`);
   }
   assert.match(read("src/app/api/signup/route.ts"), /sendWelcomeEmail/);
+  assert.match(read("src/app/api/signup/route.ts"), /issueEmailVerification/);
+  assert.match(read("src/app/api/login/route.ts"), /sendNewSignInEmail/);
   assert.match(read("src/app/api/password/forgot/route.ts"), /sendPasswordResetEmail/);
   assert.match(read("src/app/api/password/reset/route.ts"), /sendPasswordChangedEmail/);
   assert.match(read("src/app/api/keys/route.ts"), /sendApiKeyCreatedEmail/);
+  assert.match(read("src/app/api/keys/[id]/route.ts"), /sendApiKeyRevokedEmail/);
+  assert.match(read("src/app/api/account/route.ts"), /sendAccountDeletedEmail/);
   const webhook = read("src/app/api/stripe/webhook/route.ts");
   assert.match(webhook, /sendPaymentConfirmedEmail/);
   assert.match(webhook, /sendPaymentFailedEmail/);
   assert.match(webhook, /sendSubscriptionCanceledEmail/);
+  assert.match(webhook, /sendRenewalReceiptEmail/);
+  assert.match(webhook, /sendPlanChangedEmail/);
   assert.match(webhook, /invoice\.payment_failed/);
+});
+
+test("email verification is single-use and marks emailVerified", () => {
+  const verify = read("src/app/api/email/verify/route.ts");
+  assert.match(verify, /emailVerified/);
+  assert.match(verify, /usedAt/);
 });
 
 test("password reset avoids enumeration and is single-use + session-invalidating", () => {
