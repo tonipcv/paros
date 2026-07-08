@@ -3,7 +3,7 @@ import { createSession, setSessionCookie } from "@/lib/auth";
 import { error, isEmail, json } from "@/lib/http";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { rateLimitShared, clientIp } from "@/lib/rate-limit";
-import { sendEmail, emailLayout, button, paragraph, appUrl } from "@/lib/email";
+import { sendWelcomeEmail } from "@/lib/emails";
 
 export const runtime = "nodejs";
 
@@ -25,22 +25,7 @@ export async function POST(request: Request) {
     const token = await createSession(user.id);
     await setSessionCookie(token);
 
-    // Welcome email (best-effort; never blocks signup).
-    sendEmail({
-      to: String(email).toLowerCase(),
-      subject: "Welcome to KRX",
-      html: emailLayout({
-        title: "Welcome to KRX",
-        category: "Account",
-        preheader: "Your private AI workspace is ready.",
-        bodyHtml:
-          paragraph(`Hello${name ? ` ${name}` : ""},`) +
-          paragraph("Thank you for creating a KRX account. Your private AI workspace is now active. You can chat with frontier and open models, generate images, and select the privacy posture that fits your work — from zero-retention routing to hardware-attested TEE and end-to-end encryption.") +
-          `<p style="margin:0 0 8px;">${button(`${appUrl()}/chat`, "Open your workspace")}</p>`,
-        footer: "You are receiving this message because an account was created with this email address at KRX. If this was not you, please contact krx@heuv.dev.",
-      }),
-      text: `Welcome to KRX. Open your workspace: ${appUrl()}/chat`,
-    }).catch((e) => console.error("welcome email failed:", e));
+    sendWelcomeEmail(String(email).toLowerCase(), name).catch((e) => console.error("welcome email failed:", e));
 
     return json({ ok: true });
   } catch (e: unknown) {

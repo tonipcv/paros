@@ -18,6 +18,7 @@ const stripe = new Stripe(secretKey, { apiVersion: "2025-02-24.acacia" });
 const enabled_events = [
   "checkout.session.completed",
   "invoice.payment_succeeded",
+  "invoice.payment_failed",
   "customer.subscription.updated",
   "customer.subscription.deleted",
 ];

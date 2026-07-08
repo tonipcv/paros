@@ -96,6 +96,30 @@ test("metered routes reserve credits up front and refund on failure", () => {
   }
 });
 
+test("transactional emails are wired into the right flows", () => {
+  const emails = read("src/lib/emails.ts");
+  for (const fn of [
+    "sendWelcomeEmail",
+    "sendPasswordResetEmail",
+    "sendPasswordChangedEmail",
+    "sendPaymentConfirmedEmail",
+    "sendPaymentFailedEmail",
+    "sendSubscriptionCanceledEmail",
+    "sendApiKeyCreatedEmail",
+  ]) {
+    assert.match(emails, new RegExp(`export async function ${fn}\\b`), `emails.ts must export ${fn}`);
+  }
+  assert.match(read("src/app/api/signup/route.ts"), /sendWelcomeEmail/);
+  assert.match(read("src/app/api/password/forgot/route.ts"), /sendPasswordResetEmail/);
+  assert.match(read("src/app/api/password/reset/route.ts"), /sendPasswordChangedEmail/);
+  assert.match(read("src/app/api/keys/route.ts"), /sendApiKeyCreatedEmail/);
+  const webhook = read("src/app/api/stripe/webhook/route.ts");
+  assert.match(webhook, /sendPaymentConfirmedEmail/);
+  assert.match(webhook, /sendPaymentFailedEmail/);
+  assert.match(webhook, /sendSubscriptionCanceledEmail/);
+  assert.match(webhook, /invoice\.payment_failed/);
+});
+
 test("password reset avoids enumeration and is single-use + session-invalidating", () => {
   const forgot = read("src/app/api/password/forgot/route.ts");
   assert.match(forgot, /Never reveal/);

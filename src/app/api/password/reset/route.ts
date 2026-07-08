@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { hashToken, hashPassword } from "@/lib/auth";
 import { error, json } from "@/lib/http";
 import { rateLimitShared, clientIp } from "@/lib/rate-limit";
+import { sendPasswordChangedEmail } from "@/lib/emails";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
 
     const record = await prisma.passwordResetToken.findUnique({
       where: { tokenHash: hashToken(token) },
+      include: { user: { select: { email: true } } },
     });
     if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
       return error("This reset link is invalid or has expired.", 400);
@@ -34,6 +36,11 @@ export async function POST(request: Request) {
       }),
       prisma.session.deleteMany({ where: { userId: record.userId } }),
     ]);
+
+    // Security confirmation (best-effort).
+    if (record.user?.email) {
+      sendPasswordChangedEmail(record.user.email).catch((e) => console.error("password changed email failed:", e));
+    }
 
     return json({ ok: true });
   } catch (e: unknown) {

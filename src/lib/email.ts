@@ -172,7 +172,6 @@ export function emailLayout(opts: {
   title: string;
   bodyHtml: string;
   preheader?: string;
-  category?: string;
   footer?: string;
 }): string {
   const year = new Date().getFullYear();

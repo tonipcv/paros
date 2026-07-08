@@ -1,9 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { hasStripe, stripe } from "@/lib/stripe";
 import { findPlan, PLANS, type BillingCycle, type PlanConfig } from "@/lib/models";
+import {
+  sendPaymentConfirmedEmail,
+  sendPaymentFailedEmail,
+  sendSubscriptionCanceledEmail,
+} from "@/lib/emails";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
+
+async function workspaceEmail(workspaceId: string): Promise<string | null> {
+  const ws = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { user: { select: { email: true } } },
+  });
+  return ws?.user?.email ?? null;
+}
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -136,6 +149,30 @@ export async function POST(request: Request) {
               status: "ACTIVE",
             },
           });
+          const cycle: BillingCycle = session.metadata?.billingCycle === "yearly" ? "yearly" : "monthly";
+          const to = await workspaceEmail(workspaceId);
+          if (to) {
+            await sendPaymentConfirmedEmail(to, { planName: plan.name, credits: plan.credits, cycle }).catch((e) =>
+              console.error("payment confirmed email failed:", e)
+            );
+          }
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const sub = await prisma.subscription.findFirst({
+          where: { stripeCustomerId: invoice.customer as string },
+        });
+        if (sub) {
+          const plan = planForPriceId(sub.stripePriceId);
+          const to = await workspaceEmail(sub.workspaceId);
+          if (to) {
+            await sendPaymentFailedEmail(to, { planName: plan?.name }).catch((e) =>
+              console.error("payment failed email failed:", e)
+            );
+          }
         }
         break;
       }
@@ -195,6 +232,12 @@ export async function POST(request: Request) {
             where: { id: sub.workspaceId },
             data: { plan: "FREE", credits: target },
           });
+          const to = await workspaceEmail(sub.workspaceId);
+          if (to) {
+            await sendSubscriptionCanceledEmail(to).catch((e) =>
+              console.error("subscription canceled email failed:", e)
+            );
+          }
         }
         break;
       }

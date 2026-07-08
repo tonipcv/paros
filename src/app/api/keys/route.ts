@@ -2,6 +2,7 @@ import { requireUser, generateApiKey } from "@/lib/auth";
 import { getWorkspaceForUser } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { error, json, handleRouteError } from "@/lib/http";
+import { sendApiKeyCreatedEmail } from "@/lib/emails";
 
 export async function GET() {
   try {
@@ -30,6 +31,9 @@ export async function POST(request: Request) {
     const record = await prisma.apiKey.create({
       data: { workspaceId: ws.id, name, keyHash: hash, keyPrefix: prefix },
     });
+    if (user.email) {
+      sendApiKeyCreatedEmail(user.email, record.name).catch((e) => console.error("api key email failed:", e));
+    }
     return json({ id: record.id, name: record.name, key });
   } catch (e) {
     return handleRouteError(e);
