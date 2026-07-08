@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   MoreHorizontal,
+  Shield,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { initials } from "@/lib/ui-helpers";
@@ -114,7 +115,7 @@ function Sidebar({
   onLogout,
 }: {
   isActive: (to: string) => boolean;
-  user: { name: string; email: string };
+  user: { name: string; email: string; role?: string };
   workspace: { plan: string; credits: number } | null;
   onClose?: () => void;
   onLogout: () => void;
@@ -158,9 +159,23 @@ function Sidebar({
                 <Icon size={18} strokeWidth={2} className={active ? "text-primary" : "text-tertiary"} />
                 <span>{item.label}</span>
               </Link>
-            );
-          })}
-        </div>
+              );
+            })}
+            {user.role !== "USER" && (
+              <Link
+                href="/admin"
+                onClick={onClose}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  isActive("/admin")
+                    ? "bg-rose-500/10 text-rose-400"
+                    : "text-sidebarText hover:bg-sidebarHover hover:text-primary"
+                }`}
+              >
+                <Shield size={18} strokeWidth={2} className={isActive("/admin") ? "text-rose-400" : "text-tertiary"} />
+                <span>Admin</span>
+              </Link>
+            )}
+          </div>
       </nav>
 
       <div className="relative border-t border-borderDefault p-3">

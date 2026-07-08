@@ -83,6 +83,21 @@ export async function requireUser() {
   return user;
 }
 
+export type Role = "USER" | "ADMIN" | "SUPER_ADMIN";
+
+const ROLE_HIERARCHY: Record<Role, number> = { USER: 0, ADMIN: 1, SUPER_ADMIN: 2 };
+
+export function isRoleAtLeast(userRole: string, minRole: Role): boolean {
+  return (ROLE_HIERARCHY[userRole as Role] ?? 0) >= (ROLE_HIERARCHY[minRole] ?? 0);
+}
+
+export async function requireAdmin(minRole: Role = "ADMIN"): Promise<ReturnType<typeof currentUser>> {
+  const user = await currentUser();
+  if (!user) throw new Error("Authentication required");
+  if (!isRoleAtLeast(user.role, minRole)) throw new Error("Forbidden");
+  return user;
+}
+
 export async function destroySession(token: string) {
   await prisma.session.deleteMany({ where: { token } });
 }
