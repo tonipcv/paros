@@ -164,8 +164,8 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
   return { ok: true };
 }
 
-// Enterprise-grade transactional email shell. 600px, conservative palette,
-// header with logo + category label, rule dividers, and a formal footer with
+// Enterprise transactional email shell. 600px, conservative palette, a thin
+// accent bar, the content, and a formal footer with a minimalist logo lockup,
 // legal line, navigation links, postal address, and an automated-message notice.
 // Table-based, inline styles only, no external CSS.
 export function emailLayout(opts: {
@@ -179,7 +179,6 @@ export function emailLayout(opts: {
   const base = appUrl();
   const preheader = opts.preheader || opts.title;
   const address = process.env.EMAIL_COMPANY_ADDRESS || "KRX Labs · Private AI Infrastructure";
-  const category = opts.category || "";
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -195,11 +194,7 @@ export function emailLayout(opts: {
     <tr><td align="center" style="padding:32px 12px;">
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border:1px solid #dcdfe4;border-radius:6px;overflow:hidden;">
         <tr><td style="height:3px;background:#0b0f19;font-size:0;line-height:0;">&nbsp;</td></tr>
-        <tr><td style="padding:22px 32px;border-bottom:1px solid #e8eaee;">
-          <img src="${base}/logo.png" width="24" height="24" alt="" style="border-radius:6px;vertical-align:middle;">
-          <span style="font-size:15px;font-weight:700;letter-spacing:.02em;color:#0b0f19;padding-left:9px;vertical-align:middle;">${appName}</span>${category ? `<span style="font-size:14px;font-weight:400;color:#9aa0ac;padding-left:9px;vertical-align:middle;">&nbsp;·&nbsp; ${category}</span>` : ""}
-        </td></tr>
-        <tr><td style="padding:34px 32px 8px;">
+        <tr><td style="padding:36px 32px 8px;">
           <h1 style="margin:0 0 18px;font-size:20px;line-height:1.35;font-weight:600;color:#0b0f19;">${opts.title}</h1>
           ${opts.bodyHtml}
         </td></tr>
