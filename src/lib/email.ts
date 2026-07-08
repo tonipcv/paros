@@ -1,12 +1,12 @@
 // Transactional email sender.
 //
-// Cloudflare Email Routing (already configured for heuv.dev) only *receives*
-// mail. Outbound transactional email is sent through MailChannels — the
-// Cloudflare-ecosystem email API — signed with a DKIM key whose public half
-// lives in Cloudflare DNS for heuv.dev. (Resend is kept as an optional
-// alternative.) If nothing is configured, sends are skipped (and logged) so
-// flows like password reset degrade gracefully in dev.
+// Primary transport is Cloudflare Email Service (native REST API) — the domain
+// heuv.dev is onboarded for sending and Cloudflare manages DKIM/SPF/DMARC in its
+// own DNS. MailChannels and Resend are kept as optional alternatives. If nothing
+// is configured, sends are skipped (and logged) so flows like password reset
+// degrade gracefully in dev.
 
+const CF_API_BASE = "https://api.cloudflare.com/client/v4";
 const MAILCHANNELS_ENDPOINT = "https://api.mailchannels.net/tx/v1/send";
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
@@ -14,11 +14,20 @@ function mailchannelsEndpoint(): string {
   return process.env.MAILCHANNELS_ENDPOINT || MAILCHANNELS_ENDPOINT;
 }
 
-type Provider = "mailchannels" | "resend";
+function cfAccountId(): string | undefined {
+  return process.env.CLOUDFLARE_ACCOUNT_ID || process.env.R2_ACCOUNT_ID;
+}
+
+function cfSendEndpoint(): string {
+  return process.env.CF_EMAIL_ENDPOINT || `${CF_API_BASE}/accounts/${cfAccountId()}/email/sending/send`;
+}
+
+type Provider = "cloudflare" | "mailchannels" | "resend";
 
 function selectedProvider(): Provider | null {
   const explicit = (process.env.EMAIL_PROVIDER || "").toLowerCase();
-  if (explicit === "mailchannels" || explicit === "resend") return explicit;
+  if (explicit === "cloudflare" || explicit === "mailchannels" || explicit === "resend") return explicit;
+  if (process.env.CF_EMAIL_API_TOKEN && cfAccountId()) return "cloudflare";
   if (process.env.MAILCHANNELS_API_KEY || process.env.MAILCHANNELS_DKIM_PRIVATE_KEY) return "mailchannels";
   if (process.env.RESEND_API_KEY) return "resend";
   return null;
@@ -52,6 +61,32 @@ export type SendEmailInput = {
   text?: string;
   replyTo?: string;
 };
+
+async function sendViaCloudflare(input: SendEmailInput): Promise<void> {
+  const replyTo = input.replyTo || process.env.EMAIL_REPLY_TO;
+  const res = await fetch(cfSendEndpoint(), {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.CF_EMAIL_API_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      to: input.to,
+      from: emailFrom(),
+      subject: input.subject,
+      html: input.html,
+      ...(input.text ? { text: input.text } : {}),
+      ...(replyTo ? { reply_to: replyTo } : {}),
+    }),
+  });
+  const data = (await res.json().catch(() => null)) as
+    | { success?: boolean; errors?: { code?: number; message?: string }[] }
+    | null;
+  if (!res.ok || !data?.success) {
+    const msg = data?.errors?.map((e) => e.message).filter(Boolean).join("; ") || `HTTP ${res.status}`;
+    throw new Error(`Cloudflare email send failed: ${msg}`);
+  }
+}
 
 async function sendViaMailChannels(input: SendEmailInput): Promise<void> {
   const from = parseFrom();
@@ -124,6 +159,7 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
     return { ok: false, skipped: true };
   }
   if (provider === "mailchannels") await sendViaMailChannels(input);
+  else if (provider === "cloudflare") await sendViaCloudflare(input);
   else await sendViaResend(input);
   return { ok: true };
 }
