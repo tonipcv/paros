@@ -10,6 +10,10 @@
 const MAILCHANNELS_ENDPOINT = "https://api.mailchannels.net/tx/v1/send";
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
+function mailchannelsEndpoint(): string {
+  return process.env.MAILCHANNELS_ENDPOINT || MAILCHANNELS_ENDPOINT;
+}
+
 type Provider = "mailchannels" | "resend";
 
 function selectedProvider(): Provider | null {
@@ -75,7 +79,7 @@ async function sendViaMailChannels(input: SendEmailInput): Promise<void> {
     ...(replyTo ? { reply_to: { email: replyTo } } : {}),
   };
 
-  const res = await fetch(MAILCHANNELS_ENDPOINT, {
+  const res = await fetch(mailchannelsEndpoint(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
