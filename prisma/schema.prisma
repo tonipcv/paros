@@ -247,3 +247,16 @@ model EmailVerificationToken {
   @@index([userId])
   @@map("email_verification_tokens")
 }
+
+model HealthCheck {
+  id        String   @id @default(cuid())
+  name      String
+  status    String   @default("healthy")  // healthy | degraded | down
+  message   String?
+  durationMs Int?
+  alertSent Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@map("health_checks")
+}
