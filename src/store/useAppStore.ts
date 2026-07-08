@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { ChatModel } from "@/lib/models";
 import { deriveKey, makeCheckBlob, randomSaltB64, verifyKey } from "@/lib/e2e";
 
-type UserState = { id: string; name: string; email: string; role: string };
+type UserState = { id: string; name: string; email: string; role: string; emailVerified: boolean };
 type WorkspaceState = {
   id: string;
   name: string;

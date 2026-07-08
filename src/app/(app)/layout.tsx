@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { initials } from "@/lib/ui-helpers";
+import { VerifyEmailBanner } from "@/components/verify-email-banner";
 
 const appName = "KRX";
 
@@ -96,7 +97,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <span className="text-sm font-semibold text-grad-light">{appName}</span>
           <div className="w-8" />
         </div>
-        <main className="flex-1 overflow-auto bg-bgPage">{children}</main>
+        <main className="flex-1 overflow-auto bg-bgPage">
+          <VerifyEmailBanner />
+          {children}
+        </main>
       </div>
     </div>
   );
