@@ -48,6 +48,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [loaded, user, load, router]);
 
+  // Enforce email verification for non-guest, password-based accounts.
+  useEffect(() => {
+    if (user && !user.emailVerified && !user.email.endsWith("@guest.local") && pathname !== "/verify") {
+      router.replace("/verify");
+    }
+  }, [user, pathname, router]);
+
   if (!loaded || !user) {
     return (
       <div className="flex h-screen items-center justify-center bg-bgPage">

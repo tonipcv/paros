@@ -5,6 +5,28 @@ import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
 import { annualMonthlyEquivalent, annualPlanPrice, formatPrice, PLANS, type BillingCycle } from "@/lib/models";
+import { ExternalLink } from "lucide-react";
+
+type HistoryData = {
+  subscription: {
+    status: string;
+    plan: string;
+    credits: number;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+  } | null;
+  invoices: {
+    id: string;
+    number: string;
+    amount: number;
+    currency: string;
+    status: string;
+    periodStart: string;
+    periodEnd: string;
+    pdfUrl: string;
+    hostedUrl: string;
+  }[];
+};
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -14,6 +36,14 @@ export default function BillingPage() {
   const { workspace, load } = useAppStore();
   const [loading, setLoading] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
+  const [history, setHistory] = useState<HistoryData | null>(null);
+
+  useEffect(() => {
+    fetch("/api/billing/history")
+      .then((r) => r.json())
+      .then(setHistory)
+      .catch(() => {});
+  }, []);
 
   const hasYearly = useMemo(() =>
     PLANS.some((p) => p.priceEnvYearly && process.env["NEXT_PUBLIC_" + p.priceEnvYearly]),
@@ -135,6 +165,71 @@ export default function BillingPage() {
           );
         })}
       </div>
+
+      {/* Billing history (Stripe subscription + invoices) */}
+      {history?.subscription && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-primary">Billing history</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="card p-4">
+              <p className="text-[11px] uppercase tracking-wide text-tertiary">Status</p>
+              <p className="mt-1 text-sm font-semibold text-primary capitalize">{history.subscription.status}</p>
+              {history.subscription.cancelAtPeriodEnd && <p className="mt-0.5 text-[11px] text-amber-400">Cancels at period end</p>}
+            </div>
+            <div className="card p-4">
+              <p className="text-[11px] uppercase tracking-wide text-tertiary">Next billing</p>
+              <p className="mt-1 text-sm font-semibold text-primary">
+                {history.subscription.currentPeriodEnd
+                  ? new Date(history.subscription.currentPeriodEnd).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+                  : "—"}
+              </p>
+            </div>
+            <div className="card p-4">
+              <p className="text-[11px] uppercase tracking-wide text-tertiary">Credits per renewal</p>
+              <p className="mt-1 text-sm font-semibold text-primary">{history.subscription.credits.toLocaleString()}</p>
+            </div>
+          </div>
+
+          {history.invoices.length > 0 && (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-borderDefault text-[11px] uppercase tracking-wide text-tertiary">
+                    <th className="px-3 py-2.5 font-medium">Invoice</th>
+                    <th className="px-3 py-2.5 font-medium">Period</th>
+                    <th className="px-3 py-2.5 font-medium">Amount</th>
+                    <th className="px-3 py-2.5 font-medium hidden sm:table-cell">Status</th>
+                    <th className="px-3 py-2.5 font-medium">Receipt</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-borderDefault">
+                  {history.invoices.slice(0, 24).map((inv) => (
+                    <tr key={inv.id} className="hover:bg-bgHover">
+                      <td className="px-3 py-2.5 text-[13px] text-primary">{inv.number}</td>
+                      <td className="px-3 py-2.5 text-[12px] text-muted">
+                        {new Date(inv.periodStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </td>
+                      <td className="px-3 py-2.5 text-[13px] text-primary">
+                        {inv.currency.toUpperCase()} {inv.amount.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-2.5 hidden sm:table-cell">
+                        <span className={`text-[12px] capitalize ${inv.status === "paid" ? "text-emerald-400" : "text-muted"}`}>{inv.status}</span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        {inv.hostedUrl && (
+                          <a href={inv.hostedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] text-tertiary hover:text-primary">
+                            <ExternalLink size={13} /> View
+                          </a>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

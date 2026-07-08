@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 const appName = "KRX";
 
 export default function VerifyPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<"success" | "invalid" | "pending">("pending");
   const [resending, setResending] = useState(false);
 
@@ -20,7 +22,10 @@ export default function VerifyPage() {
     const res = await fetch("/api/email/resend", { method: "POST" });
     setResending(false);
     if (res.ok) toast.success("Verification email sent — check your inbox.");
-    else if (res.status === 401) toast.error("Please sign in first, then resend.");
+    else if (res.status === 401) {
+      toast.error("Please sign in first, then we&apos;ll resend the verification email.");
+      setTimeout(() => router.replace("/login"), 1500);
+    }
     else toast.error("Could not resend right now.");
   }
 
