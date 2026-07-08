@@ -37,15 +37,18 @@ export async function POST(request: Request) {
         to: email,
         subject: "Reset your password",
         html: emailLayout({
-          title: "Reset your password",
-          preheader: "Use this link to set a new password. It expires in 1 hour.",
+          title: "Password reset request",
+          category: "Account security",
+          preheader: "Use this secure link to set a new password. It expires in 1 hour.",
           bodyHtml:
-            paragraph("We received a request to reset the password for your account. Click the button below to choose a new one. This link expires in <b>1 hour</b> and can be used once.") +
+            paragraph("Hello,") +
+            paragraph("We received a request to reset the password for your KRX account. To proceed, select the button below. For your security, this link will expire in <b>1 hour</b> and may be used only once.") +
             `<p style="margin:0 0 22px;">${button(link, "Reset password")}</p>` +
-            muted(`If the button doesn't work, paste this link into your browser:<br>${link}`),
-          footer: "If you didn't request a password reset, you can safely ignore this email — your password won't change.",
+            paragraph('If the button above does not work, copy and paste the following link into your browser:') +
+            muted(link),
+          footer: "If you did not request a password reset, no action is required — your password will remain unchanged. For assistance, contact krx@heuv.dev.",
         }),
-        text: `Reset your password (expires in 1 hour):\n${link}\n\nIf you didn't request this, ignore this email.`,
+        text: `Password reset request\n\nWe received a request to reset the password for your KRX account. Use the secure link below (expires in 1 hour, single use):\n${link}\n\nIf you did not request this, no action is required.`,
       }).catch((e) => {
         console.error("password reset email failed:", e);
         return { ok: false as const };

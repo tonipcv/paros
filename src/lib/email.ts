@@ -164,42 +164,64 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
   return { ok: true };
 }
 
-// A real, client-agnostic transactional email shell: hidden preheader, logo,
-// wordmark, a bordered card, CTA, and a footer. Inline styles only, no external
-// CSS. The logo is served from the app's public assets over HTTPS.
-export function emailLayout(opts: { title: string; bodyHtml: string; preheader?: string; footer?: string }): string {
+// Enterprise-grade transactional email shell. 600px, conservative palette,
+// header with logo + category label, rule dividers, and a formal footer with
+// legal line, navigation links, postal address, and an automated-message notice.
+// Table-based, inline styles only, no external CSS.
+export function emailLayout(opts: {
+  title: string;
+  bodyHtml: string;
+  preheader?: string;
+  category?: string;
+  footer?: string;
+}): string {
   const year = new Date().getFullYear();
   const base = appUrl();
   const preheader = opts.preheader || opts.title;
+  const address = process.env.EMAIL_COMPANY_ADDRESS || "KRX Labs · Private AI Infrastructure";
+  const category = opts.category || "";
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="color-scheme" content="light dark">
+<meta http-equiv="x-ua-compatible" content="ie=edge">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
 <title>${opts.title}</title>
 </head>
-<body style="margin:0;padding:0;background:#f4f4f5;-webkit-font-smoothing:antialiased;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#eceef1;-webkit-font-smoothing:antialiased;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
   <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">${preheader}</span>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 12px;">
-    <tr><td align="center">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
-        <tr><td style="padding:0 4px 20px;">
-          <a href="${base}" style="text-decoration:none;color:#0b0b0b;display:inline-flex;align-items:center;">
-            <img src="${base}/logo.png" width="28" height="28" alt="${appName}" style="border-radius:7px;vertical-align:middle;">
-            <span style="font-size:16px;font-weight:700;letter-spacing:.02em;color:#0b0b0b;padding-left:10px;vertical-align:middle;">${appName}</span>
-          </a>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceef1;">
+    <tr><td align="center" style="padding:32px 12px;">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border:1px solid #dcdfe4;border-radius:6px;overflow:hidden;">
+        <tr><td style="height:3px;background:#0b0f19;font-size:0;line-height:0;">&nbsp;</td></tr>
+        <tr><td style="padding:22px 32px;border-bottom:1px solid #e8eaee;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+            <td align="left" style="vertical-align:middle;">
+              <img src="${base}/logo.png" width="26" height="26" alt="${appName}" style="border-radius:6px;vertical-align:middle;">
+              <span style="font-size:15px;font-weight:700;letter-spacing:.03em;color:#0b0f19;padding-left:9px;vertical-align:middle;text-transform:uppercase;">${appName}</span>
+            </td>
+            ${category ? `<td align="right" style="vertical-align:middle;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a909c;">${category}</td>` : ""}
+          </tr></table>
         </td></tr>
-        <tr><td style="background:#ffffff;border:1px solid #e6e6e8;border-radius:16px;padding:32px;">
-          <h1 style="margin:0 0 14px;font-size:20px;line-height:1.3;font-weight:650;color:#0b0b0b;">${opts.title}</h1>
+        <tr><td style="padding:34px 32px 8px;">
+          <h1 style="margin:0 0 18px;font-size:20px;line-height:1.35;font-weight:600;color:#0b0f19;">${opts.title}</h1>
           ${opts.bodyHtml}
         </td></tr>
-        <tr><td style="padding:20px 6px 0;">
-          <p style="margin:0 0 8px;font-size:12px;line-height:1.6;color:#8a8a8f;">
-            ${opts.footer || `This is a transactional email from ${appName}. If you didn't request it, you can safely ignore this message.`}
+        <tr><td style="padding:8px 32px 30px;"></td></tr>
+        <tr><td style="padding:22px 32px;background:#f6f7f9;border-top:1px solid #e8eaee;">
+          <p style="margin:0 0 10px;font-size:12px;line-height:1.6;color:#6b7280;">
+            ${opts.footer || `This is an automated message regarding your ${appName} account. Please do not reply to this email.`}
           </p>
-          <p style="margin:0;font-size:12px;color:#a0a0a5;">
-            <a href="${base}/privacy" style="color:#8a8a8f;text-decoration:underline;">Privacy</a>
-            &nbsp;·&nbsp; &copy; ${year} ${appName}
+          <p style="margin:0 0 10px;font-size:12px;line-height:1;color:#6b7280;">
+            <a href="${base}" style="color:#3b5bdb;text-decoration:none;">Help Center</a>
+            &nbsp;&nbsp;<a href="${base}/privacy" style="color:#3b5bdb;text-decoration:none;">Privacy Policy</a>
+            &nbsp;&nbsp;<a href="${base}/privacy" style="color:#3b5bdb;text-decoration:none;">Terms of Service</a>
+            &nbsp;&nbsp;<a href="mailto:krx@heuv.dev" style="color:#3b5bdb;text-decoration:none;">Contact</a>
+          </p>
+          <p style="margin:0;font-size:11px;line-height:1.5;color:#9aa0ac;">
+            ${address}<br>
+            &copy; ${year} ${appName}. All rights reserved.
           </p>
         </td></tr>
       </table>
@@ -209,13 +231,15 @@ export function emailLayout(opts: { title: string; bodyHtml: string; preheader?:
 }
 
 export function button(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;background:#0b0b0b;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;line-height:1;padding:13px 22px;border-radius:10px;">${label}</a>`;
+  return `<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="background:#0b0f19;border-radius:6px;">
+    <a href="${href}" style="display:inline-block;padding:13px 26px;font-size:14px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;">${label}</a>
+  </td></tr></table>`;
 }
 
 export function paragraph(html: string): string {
-  return `<p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:#3f3f46;">${html}</p>`;
+  return `<p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#3a4048;">${html}</p>`;
 }
 
 export function muted(html: string): string {
-  return `<p style="margin:0;font-size:13px;line-height:1.6;color:#8a8a8f;word-break:break-all;">${html}</p>`;
+  return `<p style="margin:0;font-size:13px;line-height:1.6;color:#8a909c;word-break:break-all;">${html}</p>`;
 }

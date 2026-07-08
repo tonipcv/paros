@@ -30,12 +30,14 @@ export async function POST(request: Request) {
       to: String(email).toLowerCase(),
       subject: "Welcome to KRX",
       html: emailLayout({
-        title: `Welcome to KRX${name ? `, ${name}` : ""}`,
+        title: "Welcome to KRX",
+        category: "Account",
         preheader: "Your private AI workspace is ready.",
         bodyHtml:
-          paragraph("Your private AI workspace is ready. Chat with frontier and open models, generate images, and pick your privacy mode — from zero-retention to hardware-attested TEE and real end-to-end encryption.") +
+          paragraph(`Hello${name ? ` ${name}` : ""},`) +
+          paragraph("Thank you for creating a KRX account. Your private AI workspace is now active. You can chat with frontier and open models, generate images, and select the privacy posture that fits your work — from zero-retention routing to hardware-attested TEE and end-to-end encryption.") +
           `<p style="margin:0 0 8px;">${button(`${appUrl()}/chat`, "Open your workspace")}</p>`,
-        footer: "You're receiving this because you created a KRX account.",
+        footer: "You are receiving this message because an account was created with this email address at KRX. If this was not you, please contact krx@heuv.dev.",
       }),
       text: `Welcome to KRX. Open your workspace: ${appUrl()}/chat`,
     }).catch((e) => console.error("welcome email failed:", e));
