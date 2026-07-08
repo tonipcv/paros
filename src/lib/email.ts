@@ -164,26 +164,58 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
   return { ok: true };
 }
 
-// Minimal, client-agnostic HTML shell — inline styles, no external assets.
-export function emailLayout(opts: { title: string; bodyHtml: string; footer?: string }): string {
+// A real, client-agnostic transactional email shell: hidden preheader, logo,
+// wordmark, a bordered card, CTA, and a footer. Inline styles only, no external
+// CSS. The logo is served from the app's public assets over HTTPS.
+export function emailLayout(opts: { title: string; bodyHtml: string; preheader?: string; footer?: string }): string {
   const year = new Date().getFullYear();
+  const base = appUrl();
+  const preheader = opts.preheader || opts.title;
   return `<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;background:#0b0b0b;color:#e9e9e9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <div style="max-width:480px;margin:0 auto;padding:32px 24px;">
-    <div style="font-size:18px;font-weight:600;letter-spacing:.2px;color:#fff;margin-bottom:24px;">${appName}</div>
-    <div style="background:#141414;border:1px solid #242424;border-radius:16px;padding:28px;">
-      <h1 style="margin:0 0 16px;font-size:18px;color:#fff;">${opts.title}</h1>
-      ${opts.bodyHtml}
-    </div>
-    <p style="margin:20px 4px 0;font-size:12px;color:#8a8a8a;line-height:1.6;">
-      ${opts.footer || `You're receiving this because someone used your email at ${appName}. If it wasn't you, you can safely ignore it.`}
-    </p>
-    <p style="margin:8px 4px 0;font-size:11px;color:#5a5a5a;">&copy; ${year} ${appName}</p>
-  </div>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>${opts.title}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;-webkit-font-smoothing:antialiased;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">${preheader}</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+        <tr><td style="padding:0 4px 20px;">
+          <a href="${base}" style="text-decoration:none;color:#0b0b0b;display:inline-flex;align-items:center;">
+            <img src="${base}/logo.png" width="28" height="28" alt="${appName}" style="border-radius:7px;vertical-align:middle;">
+            <span style="font-size:16px;font-weight:700;letter-spacing:.02em;color:#0b0b0b;padding-left:10px;vertical-align:middle;">${appName}</span>
+          </a>
+        </td></tr>
+        <tr><td style="background:#ffffff;border:1px solid #e6e6e8;border-radius:16px;padding:32px;">
+          <h1 style="margin:0 0 14px;font-size:20px;line-height:1.3;font-weight:650;color:#0b0b0b;">${opts.title}</h1>
+          ${opts.bodyHtml}
+        </td></tr>
+        <tr><td style="padding:20px 6px 0;">
+          <p style="margin:0 0 8px;font-size:12px;line-height:1.6;color:#8a8a8f;">
+            ${opts.footer || `This is a transactional email from ${appName}. If you didn't request it, you can safely ignore this message.`}
+          </p>
+          <p style="margin:0;font-size:12px;color:#a0a0a5;">
+            <a href="${base}/privacy" style="color:#8a8a8f;text-decoration:underline;">Privacy</a>
+            &nbsp;·&nbsp; &copy; ${year} ${appName}
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
 </body></html>`;
 }
 
 export function button(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;background:#fff;color:#0b0b0b;text-decoration:none;font-weight:600;font-size:14px;padding:11px 20px;border-radius:10px;">${label}</a>`;
+  return `<a href="${href}" style="display:inline-block;background:#0b0b0b;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;line-height:1;padding:13px 22px;border-radius:10px;">${label}</a>`;
+}
+
+export function paragraph(html: string): string {
+  return `<p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:#3f3f46;">${html}</p>`;
+}
+
+export function muted(html: string): string {
+  return `<p style="margin:0;font-size:13px;line-height:1.6;color:#8a8a8f;word-break:break-all;">${html}</p>`;
 }

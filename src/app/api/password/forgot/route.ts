@@ -4,7 +4,7 @@ import { hashToken } from "@/lib/auth";
 import { error, isEmail, json } from "@/lib/http";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { rateLimitShared, clientIp } from "@/lib/rate-limit";
-import { sendEmail, emailLayout, button, appUrl } from "@/lib/email";
+import { sendEmail, emailLayout, button, paragraph, muted, appUrl } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -38,13 +38,14 @@ export async function POST(request: Request) {
         subject: "Reset your password",
         html: emailLayout({
           title: "Reset your password",
-          bodyHtml: `<p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#c8c8c8;">
-              We received a request to reset your password. This link expires in 1 hour and can be used once.
-            </p>
-            <p style="margin:0 0 20px;">${button(link, "Reset password")}</p>
-            <p style="margin:0;font-size:12px;color:#8a8a8a;word-break:break-all;">Or paste this link: ${link}</p>`,
+          preheader: "Use this link to set a new password. It expires in 1 hour.",
+          bodyHtml:
+            paragraph("We received a request to reset the password for your account. Click the button below to choose a new one. This link expires in <b>1 hour</b> and can be used once.") +
+            `<p style="margin:0 0 22px;">${button(link, "Reset password")}</p>` +
+            muted(`If the button doesn't work, paste this link into your browser:<br>${link}`),
+          footer: "If you didn't request a password reset, you can safely ignore this email — your password won't change.",
         }),
-        text: `Reset your password (expires in 1 hour): ${link}`,
+        text: `Reset your password (expires in 1 hour):\n${link}\n\nIf you didn't request this, ignore this email.`,
       }).catch((e) => {
         console.error("password reset email failed:", e);
         return { ok: false as const };

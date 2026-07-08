@@ -3,7 +3,7 @@ import { createSession, setSessionCookie } from "@/lib/auth";
 import { error, isEmail, json } from "@/lib/http";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { rateLimitShared, clientIp } from "@/lib/rate-limit";
-import { sendEmail, emailLayout, button, appUrl } from "@/lib/email";
+import { sendEmail, emailLayout, button, paragraph, appUrl } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -30,12 +30,11 @@ export async function POST(request: Request) {
       to: String(email).toLowerCase(),
       subject: "Welcome to KRX",
       html: emailLayout({
-        title: "Welcome to KRX",
-        bodyHtml: `<p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#c8c8c8;">
-            Your private AI workspace is ready. Chat with frontier and open models, generate images,
-            and choose your privacy mode — including hardware-attested TEE and real end-to-end encryption.
-          </p>
-          <p style="margin:0;">${button(`${appUrl()}/chat`, "Open KRX")}</p>`,
+        title: `Welcome to KRX${name ? `, ${name}` : ""}`,
+        preheader: "Your private AI workspace is ready.",
+        bodyHtml:
+          paragraph("Your private AI workspace is ready. Chat with frontier and open models, generate images, and pick your privacy mode — from zero-retention to hardware-attested TEE and real end-to-end encryption.") +
+          `<p style="margin:0 0 8px;">${button(`${appUrl()}/chat`, "Open your workspace")}</p>`,
         footer: "You're receiving this because you created a KRX account.",
       }),
       text: `Welcome to KRX. Open your workspace: ${appUrl()}/chat`,
