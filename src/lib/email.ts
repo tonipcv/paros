@@ -196,32 +196,30 @@ export function emailLayout(opts: {
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border:1px solid #dcdfe4;border-radius:6px;overflow:hidden;">
         <tr><td style="height:3px;background:#0b0f19;font-size:0;line-height:0;">&nbsp;</td></tr>
         <tr><td style="padding:22px 32px;border-bottom:1px solid #e8eaee;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-            <td align="left" style="vertical-align:middle;">
-              <img src="${base}/logo.png" width="26" height="26" alt="${appName}" style="border-radius:6px;vertical-align:middle;">
-              <span style="font-size:15px;font-weight:700;letter-spacing:.03em;color:#0b0f19;padding-left:9px;vertical-align:middle;text-transform:uppercase;">${appName}</span>
-            </td>
-            ${category ? `<td align="right" style="vertical-align:middle;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8a909c;">${category}</td>` : ""}
-          </tr></table>
+          <img src="${base}/logo.png" width="24" height="24" alt="" style="border-radius:6px;vertical-align:middle;">
+          <span style="font-size:15px;font-weight:700;letter-spacing:.02em;color:#0b0f19;padding-left:9px;vertical-align:middle;">${appName}</span>${category ? `<span style="font-size:14px;font-weight:400;color:#9aa0ac;padding-left:9px;vertical-align:middle;">&nbsp;·&nbsp; ${category}</span>` : ""}
         </td></tr>
         <tr><td style="padding:34px 32px 8px;">
           <h1 style="margin:0 0 18px;font-size:20px;line-height:1.35;font-weight:600;color:#0b0f19;">${opts.title}</h1>
           ${opts.bodyHtml}
         </td></tr>
         <tr><td style="padding:8px 32px 30px;"></td></tr>
-        <tr><td style="padding:22px 32px;background:#f6f7f9;border-top:1px solid #e8eaee;">
-          <p style="margin:0 0 10px;font-size:12px;line-height:1.6;color:#6b7280;">
+        <tr><td style="padding:24px 32px;background:#f6f7f9;border-top:1px solid #e8eaee;">
+          <p style="margin:0 0 14px;line-height:1;">
+            <img src="${base}/logo.png" width="18" height="18" alt="" style="border-radius:4px;vertical-align:middle;opacity:.85;">
+            <span style="font-size:13px;font-weight:600;letter-spacing:.02em;color:#6b7280;padding-left:8px;vertical-align:middle;">${appName}</span>
+          </p>
+          <p style="margin:0 0 12px;font-size:12px;line-height:1.6;color:#6b7280;">
             ${opts.footer || `This is an automated message regarding your ${appName} account. Please do not reply to this email.`}
           </p>
-          <p style="margin:0 0 10px;font-size:12px;line-height:1;color:#6b7280;">
-            <a href="${base}" style="color:#3b5bdb;text-decoration:none;">Help Center</a>
-            &nbsp;&nbsp;<a href="${base}/privacy" style="color:#3b5bdb;text-decoration:none;">Privacy Policy</a>
-            &nbsp;&nbsp;<a href="${base}/privacy" style="color:#3b5bdb;text-decoration:none;">Terms of Service</a>
-            &nbsp;&nbsp;<a href="mailto:krx@heuv.dev" style="color:#3b5bdb;text-decoration:none;">Contact</a>
+          <p style="margin:0 0 12px;font-size:12px;line-height:1;color:#6b7280;">
+            <a href="${base}" style="color:#6b7280;text-decoration:none;">Help Center</a>
+            &nbsp;·&nbsp;<a href="${base}/privacy" style="color:#6b7280;text-decoration:none;">Privacy Policy</a>
+            &nbsp;·&nbsp;<a href="${base}/privacy" style="color:#6b7280;text-decoration:none;">Terms of Service</a>
+            &nbsp;·&nbsp;<a href="mailto:krx@heuv.dev" style="color:#6b7280;text-decoration:none;">Contact</a>
           </p>
           <p style="margin:0;font-size:11px;line-height:1.5;color:#9aa0ac;">
-            ${address}<br>
-            &copy; ${year} ${appName}. All rights reserved.
+            ${address} &nbsp;·&nbsp; &copy; ${year} ${appName}. All rights reserved.
           </p>
         </td></tr>
       </table>
