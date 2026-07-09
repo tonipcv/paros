@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { RefreshCw, Mail } from "lucide-react";
+import { useAppStore } from "@/store/useAppStore";
+import { useRouter } from "next/navigation";
 
 type Stats = {
   users: { total: number; free: number; guests: number; activeSessions: number; todayActive: number };
@@ -31,10 +33,16 @@ function ago(date: string) {
 }
 
 export default function AdminDashboard() {
+  const { user, loaded } = useAppStore();
+  const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [hcRunning, setHcRunning] = useState(false);
   const [emailRunning, setEmailRunning] = useState(false);
+
+  useEffect(() => {
+    if (loaded && user && user.role === "USER") { router.replace("/chat"); return; }
+  }, [loaded, user, router]);
 
   async function loadAudit() {
     const res = await fetch("/api/admin/audit").then((r) => r.json());
@@ -70,7 +78,7 @@ export default function AdminDashboard() {
   const cards = [
     { label: "Total users", value: stats.users.total, href: "/admin/users" },
     { label: "Active today", value: stats.users.todayActive },
-    { label: "Free plan users", value: stats.users.free },
+    { label: "Free plan", value: stats.users.free },
     { label: "Guest accounts", value: stats.users.guests },
     { label: "Active sessions", value: stats.users.activeSessions },
     { label: "Total credits", value: stats.credits.total.toLocaleString("en-US") },
@@ -86,12 +94,12 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-primary">Admin Dashboard</h1>
         <div className="flex gap-2">
-          <button onClick={runHealthCheck} disabled={hcRunning} className="btn-secondary text-[12px] px-3 py-1.5">
-            <RefreshCw size={14} className={`inline mr-1.5 ${hcRunning ? "animate-spin" : ""}`} />
+          <button onClick={runHealthCheck} disabled={hcRunning} className="btn-secondary flex items-center gap-1.5 text-[12px]">
+            <RefreshCw size={14} className={hcRunning ? "animate-spin" : ""} />
             {hcRunning ? "Running..." : "Health check"}
           </button>
-          <button onClick={sendTestEmail} disabled={emailRunning} className="btn-secondary text-[12px] px-3 py-1.5">
-            <Mail size={14} className="inline mr-1.5" />
+          <button onClick={sendTestEmail} disabled={emailRunning} className="btn-secondary flex items-center gap-1.5 text-[12px]">
+            <Mail size={14} />
             {emailRunning ? "Sending..." : "Test email"}
           </button>
         </div>
@@ -100,21 +108,20 @@ export default function AdminDashboard() {
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((c) => (
           <div key={c.label} className="card p-4">
-            <p className="text-[12px] uppercase tracking-wide text-tertiary">{c.label}</p>
+            <p className="text-[11px] uppercase tracking-wide text-tertiary">{c.label}</p>
             <p className="mt-1.5 text-2xl font-semibold text-primary">
               {c.href ? <a href={c.href} className="hover:underline">{c.value}</a> : c.value}
             </p>
           </div>
         ))}
         <div className="card p-4">
-          <p className="text-[12px] uppercase tracking-wide text-tertiary">Health</p>
+          <p className="text-[11px] uppercase tracking-wide text-tertiary">Health</p>
           <p className={`mt-1.5 text-2xl font-semibold ${stats.health.degraded > 0 ? "text-amber-400" : "text-emerald-400"}`}>
             <a href="/health" className="hover:underline">{stats.health.degraded === 0 ? "All healthy" : `${stats.health.degraded}/${stats.health.total} degraded`}</a>
           </p>
         </div>
       </div>
 
-      {/* Trends */}
       <div className="mt-6">
         <h2 className="text-sm font-semibold text-primary mb-3">Trends (last 30 days)</h2>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -124,12 +131,10 @@ export default function AdminDashboard() {
               {stats.trends.usersByDay.length === 0 && <p className="text-xs text-muted">No data yet</p>}
               {stats.trends.usersByDay.map((d) => {
                 const max = Math.max(...stats.trends.usersByDay.map((x) => x.count), 1);
-                return (
-                  <div key={d.day} className="flex-1 flex flex-col items-center" title={`${d.day}: ${d.count}`}>
-                    <span className="text-[9px] text-muted mb-1">{d.count || ""}</span>
-                    <div className="w-full bg-highlight rounded-t" style={{ height: `${(d.count / max) * 80}px` }} />
-                  </div>
-                );
+                return <div key={d.day} className="flex-1 flex flex-col items-center" title={`${d.day}: ${d.count}`}>
+                  <span className="text-[9px] text-muted mb-1">{d.count || ""}</span>
+                  <div className="w-full bg-highlight rounded-t" style={{ height: `${(d.count / max) * 80}px` }} />
+                </div>;
               })}
             </div>
           </div>
@@ -139,19 +144,16 @@ export default function AdminDashboard() {
               {stats.trends.creditsByDay.length === 0 && <p className="text-xs text-muted">No data yet</p>}
               {stats.trends.creditsByDay.map((d) => {
                 const max = Math.max(...stats.trends.creditsByDay.map((x) => x.credits), 1);
-                return (
-                  <div key={d.day} className="flex-1 flex flex-col items-center" title={`${d.day}: ${d.credits}`}>
-                    <span className="text-[9px] text-muted mb-1">{d.credits || ""}</span>
-                    <div className="w-full bg-amber-500/40 rounded-t" style={{ height: `${(d.credits / max) * 80}px` }} />
-                  </div>
-                );
+                return <div key={d.day} className="flex-1 flex flex-col items-center" title={`${d.day}: ${d.credits}`}>
+                  <span className="text-[9px] text-muted mb-1">{d.credits || ""}</span>
+                  <div className="w-full bg-amber-500/40 rounded-t" style={{ height: `${(d.credits / max) * 80}px` }} />
+                </div>;
               })}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Audit log */}
       <div className="mt-8">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-primary">Recent admin actions</h2>

@@ -15,6 +15,8 @@ import {
   Menu,
   MoreHorizontal,
   Shield,
+  ChevronDown,
+  LayoutDashboard,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { initials } from "@/lib/ui-helpers";
@@ -60,8 +62,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen items-center justify-center bg-bgPage">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-highlight border-t-transparent" />
       </div>
-    );
-  }
+  );
+}
+
 
   function isActive(to: string) {
     return pathname === to || pathname.startsWith(`${to}/`);
@@ -113,7 +116,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
 function Sidebar({
   isActive,
   user,
@@ -128,6 +130,13 @@ function Sidebar({
   onLogout: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [adminExpanded, setAdminExpanded] = useState(false);
+
+  const adminItems = [
+    { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/admin/users", label: "Users", icon: Users },
+  ];
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 shrink-0 items-center gap-3 border-b border-borderDefault px-4">
@@ -169,18 +178,39 @@ function Sidebar({
               );
             })}
             {user.role !== "USER" && (
-              <Link
-                href="/admin"
-                onClick={onClose}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  isActive("/admin")
-                    ? "bg-rose-500/10 text-rose-400"
-                    : "text-sidebarText hover:bg-sidebarHover hover:text-primary"
-                }`}
-              >
-                <Shield size={18} strokeWidth={2} className={isActive("/admin") ? "text-rose-400" : "text-tertiary"} />
-                <span>Admin</span>
-              </Link>
+              <>
+                <button
+                  onClick={() => setAdminExpanded((v) => !v)}
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                    adminExpanded ? "text-primary" : "text-sidebarText hover:bg-sidebarHover hover:text-primary"
+                  }`}
+                >
+                  <Shield size={18} strokeWidth={2} className={adminExpanded ? "text-rose-400" : "text-tertiary"} />
+                  <span className="flex-1 text-left">Admin</span>
+                  <ChevronDown size={14} className={`text-muted transition-transform ${adminExpanded ? "rotate-180" : ""}`} />
+                </button>
+                {adminExpanded && (
+                  <div className="ml-5 border-l border-borderDefault pl-3 space-y-1">
+                    {adminItems.map((item) => {
+                      const active = isActive(item.to);
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.to}
+                          href={item.to}
+                          onClick={onClose}
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                            active ? "bg-bgActive text-primary" : "text-sidebarText hover:bg-sidebarHover hover:text-primary"
+                          }`}
+                        >
+                          <Icon size={16} strokeWidth={2} className={active ? "text-primary" : "text-tertiary"} />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
       </nav>
