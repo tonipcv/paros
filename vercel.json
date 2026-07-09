@@ -9,6 +9,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/warm",
+      "schedule": "0 1 * * *"
+    },
+    {
       "path": "/api/cron/health-check",
       "schedule": "0 0 * * *"
     }
