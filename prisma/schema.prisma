@@ -254,9 +254,24 @@ model HealthCheck {
   status    String   @default("healthy")  // healthy | degraded | down
   message   String?
   durationMs Int?
-  alertSent Boolean  @default(false)
+  alertSent  Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([name, createdAt])
   @@map("health_checks")
+}
+
+model AdminAction {
+  id           String   @id @default(cuid())
+  adminId      String
+  adminEmail   String
+  action       String   // e.g. "promote_user", "set_credits", "change_plan", "health_check"
+  targetUserId String?
+  targetEmail  String?
+  details      String?
+  createdAt    DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([targetUserId])
+  @@map("admin_actions")
 }

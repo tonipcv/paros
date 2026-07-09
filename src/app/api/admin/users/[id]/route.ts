@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { error, json } from "@/lib/http";
+import { logAdminAction } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,12 @@ export async function PATCH(request: Request) {
     if (!user) return error("User not found", 404);
 
     await prisma.user.update({ where: { id: userId }, data: { role: role as "USER" | "ADMIN" | "SUPER_ADMIN" } });
+    await logAdminAction(
+      { id: admin.id, email: admin.email },
+      "promote_user",
+      { userId: user.id, email: user.email },
+      `Role changed to ${role}`
+    ).catch((e) => console.error("audit log failed:", e));
     return json({ ok: true, user: { id: user.id, email: user.email, role } });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Failed";

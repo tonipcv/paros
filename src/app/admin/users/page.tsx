@@ -16,6 +16,8 @@ type UserRecord = {
 export default function AdminUsers() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [search, setSearch] = useState("");
+  const [creditModal, setCreditModal] = useState<{ userId: string; email: string } | null>(null);
+  const [creditDelta, setCreditDelta] = useState("0");
 
   useEffect(() => {
     fetch("/api/admin/users").then((r) => r.json()).then((d) => setUsers(d.users)).catch(() => {});
@@ -30,6 +32,46 @@ export default function AdminUsers() {
     if (res.ok) {
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)));
       toast.success(`Updated to ${role}`);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      toast.error(d.error || "Failed");
+    }
+  }
+
+  async function adjustCredits() {
+    if (!creditModal) return;
+    const delta = parseInt(creditDelta, 10);
+    if (!Number.isInteger(delta)) return toast.error("Enter a whole number");
+    const res = await fetch(`/api/admin/users/${creditModal.userId}/credits`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delta }),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setUsers((prev) =>
+        prev.map((u) => (u.id === creditModal.userId ? { ...u, workspace: { ...u.workspace!, credits: d.credits } } : u))
+      );
+      toast.success(`${d.email}: ${d.previous} → ${d.credits}`);
+      setCreditModal(null);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      toast.error(d.error || "Failed");
+    }
+  }
+
+  async function changePlan(userId: string, plan: string) {
+    const res = await fetch(`/api/admin/users/${userId}/plan`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan, grantCredits: true }),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, workspace: { ...u.workspace!, plan: d.plan } } : u))
+      );
+      toast.success(`${d.email}: ${d.previous} → ${d.plan}`);
     } else {
       const d = await res.json().catch(() => ({}));
       toast.error(d.error || "Failed");
@@ -88,7 +130,8 @@ export default function AdminUsers() {
                   {new Date(u.createdAt).toLocaleDateString()}
                 </td>
                 <td className="px-3 py-2.5">
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 flex-wrap">
+                    {/* Role */}
                     {u.role !== "SUPER_ADMIN" && (
                       <button onClick={() => updateRole(u.id, "SUPER_ADMIN")}
                         className="rounded px-2 py-1 text-[10px] font-semibold bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition">
@@ -107,6 +150,21 @@ export default function AdminUsers() {
                         User
                       </button>
                     )}
+                    {/* Credits */}
+                    <button onClick={() => { setCreditModal({ userId: u.id, email: u.email }); setCreditDelta("0"); }}
+                      className="rounded px-2 py-1 text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition">
+                      Credits
+                    </button>
+                    {/* Plan */}
+                    <select
+                      value={u.workspace?.plan || "FREE"}
+                      onChange={(e) => changePlan(u.id, e.target.value)}
+                      className="rounded px-1.5 py-1 text-[10px] font-semibold bg-surface border border-borderDefault text-muted"
+                    >
+                      {["FREE", "STARTER", "PRO", "MAX"].map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
                   </div>
                 </td>
               </tr>
@@ -114,6 +172,27 @@ export default function AdminUsers() {
           </tbody>
         </table>
       </div>
+
+      {/* Credit modal */}
+      {creditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/70" onClick={() => setCreditModal(null)}>
+          <div className="card w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-semibold text-primary">Adjust credits</p>
+            <p className="mt-0.5 text-[11px] text-muted">{creditModal.email}</p>
+            <input
+              type="number"
+              value={creditDelta}
+              onChange={(e) => setCreditDelta(e.target.value)}
+              placeholder="e.g. +100 or -50"
+              className="mt-3 h-10 w-full rounded-lg border border-borderDefault bg-surface px-3 text-sm text-primary outline-none placeholder:text-muted"
+            />
+            <div className="mt-3 flex justify-end gap-2">
+              <button onClick={() => setCreditModal(null)} className="btn-secondary text-[12px] px-3 py-1.5">Cancel</button>
+              <button onClick={adjustCredits} className="btn-primary text-[12px] px-3 py-1.5">Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
