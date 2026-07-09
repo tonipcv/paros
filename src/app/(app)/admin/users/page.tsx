@@ -55,7 +55,7 @@ export default function AdminUsers() {
   const filtered = users.filter((u) => u.email.toLowerCase().includes(search.toLowerCase()) || (u.name || "").toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+    <div className="px-4 py-6 sm:px-6">
       <div className="mb-6">
         <h1 className="text-h1 text-grad-light">Users</h1>
         <p className="mt-1 text-sm text-muted">{users.length} accounts</p>
