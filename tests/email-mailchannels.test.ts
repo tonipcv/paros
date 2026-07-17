@@ -21,8 +21,8 @@ async function main() {
   // Configure the MailChannels transport to hit the mock.
   process.env.MAILCHANNELS_ENDPOINT = `http://127.0.0.1:${port}/tx/v1/send`;
   process.env.MAILCHANNELS_API_KEY = "test-key";
-  process.env.EMAIL_FROM = "KRX <krx@heuv.dev>";
-  process.env.EMAIL_REPLY_TO = "krx@heuv.dev";
+  process.env.EMAIL_FROM = "NotOpen <notopen@heuv.dev>";
+  process.env.EMAIL_REPLY_TO = "notopen@heuv.dev";
   process.env.MAILCHANNELS_DKIM_DOMAIN = "heuv.dev";
   process.env.MAILCHANNELS_DKIM_SELECTOR = "mailchannels";
   process.env.MAILCHANNELS_DKIM_PRIVATE_KEY = "BASE64PRIVATEKEY";
@@ -66,13 +66,13 @@ async function main() {
       content: { type: string; value: string }[];
       reply_to?: { email: string };
     };
-    assert.equal(b.from.email, "krx@heuv.dev");
-    assert.equal(b.from.name, "KRX");
+    assert.equal(b.from.email, "notopen@heuv.dev");
+    assert.equal(b.from.name, "NotOpen");
     assert.equal(b.personalizations[0].to[0].email, "user@example.com");
     assert.equal(b.subject, "Test subject");
     assert.ok(b.content.some((c) => c.type === "text/html"));
     assert.ok(b.content.some((c) => c.type === "text/plain"));
-    assert.equal(b.reply_to?.email, "krx@heuv.dev");
+    assert.equal(b.reply_to?.email, "notopen@heuv.dev");
   });
 
   test("DKIM signing fields are attached from env", () => {

@@ -3,10 +3,10 @@ import { Toaster } from "sonner";
 import { CookieConsent } from "@/components/cookie-consent";
 import "./globals.css";
 
-const appName = "KRX";
+const appName = "NotOpen";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://krx.ai"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://plataform.krxlab.com"),
   alternates: {
     canonical: "/",
   },
@@ -26,10 +26,10 @@ export const metadata: Metadata = {
     template: `%s: ${appName}`,
   },
   description:
-    "KRX is a private AI workspace for chat, images, video, audio, code, and OpenAI-compatible API access with privacy-first routing.",
+    "NotOpen is a private AI workspace for chat, images, video, audio, code, and OpenAI-compatible API access with privacy-first routing.",
   applicationName: appName,
   keywords: [
-    "KRX",
+    "NotOpen",
     "private AI",
     "privacy-first AI",
     "AI workspace",
@@ -38,16 +38,16 @@ export const metadata: Metadata = {
     "AI image generation",
     "AI video generation",
   ],
-  authors: [{ name: "KRX" }],
-  creator: "KRX",
-  publisher: "KRX",
+  authors: [{ name: "NotOpen" }],
+  creator: "NotOpen",
+  publisher: "NotOpen",
   openGraph: {
     title: `${appName}: Private AI Infrastructure`,
     description:
       "Private multimodal AI for work that should remain yours. Chat, create, automate, and build with privacy-first routing.",
     siteName: appName,
     type: "website",
-    images: [{ url: "/logo.png", width: 500, height: 500, alt: "KRX" }],
+    images: [{ url: "/logo.png", width: 500, height: 500, alt: "NotOpen" }],
   },
   twitter: {
     card: "summary",

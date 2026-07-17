@@ -22,7 +22,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { initials } from "@/lib/ui-helpers";
 import { VerifyEmailBanner } from "@/components/verify-email-banner";
 
-const appName = "KRX";
+const appName = "NotOpen";
 
 const nav = [
   { to: "/chat", label: "Chat", icon: MessageSquare },

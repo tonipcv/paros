@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Verify email",
-  description: "Verify your KRX email address.",
+  description: "Verify your NotOpen email address.",
   robots: { index: false, follow: false },
 };
 

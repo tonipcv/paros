@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 import { findPlan, formatCredits } from "@/lib/models";
 
-const appName = "KRX";
+const appName = "NotOpen";
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 const freeCredits = findPlan("FREE")?.credits ?? 10;
 

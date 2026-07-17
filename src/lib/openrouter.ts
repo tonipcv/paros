@@ -11,7 +11,7 @@ export function headers(baseUrl?: string, apiKey?: string) {
     Authorization: `Bearer ${key}`,
     "Content-Type": "application/json",
     "HTTP-Referer": appUrl,
-    "X-Title": "KRX",
+    "X-Title": "NotOpen",
   };
 }
 

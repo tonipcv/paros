@@ -19,7 +19,7 @@ async function sendAlert(title: string, items: string[]) {
     console.warn(`[health] alert suppressed — no email provider configured. ${title}`);
     return;
   }
-  const to = process.env.EMAIL_ALERT_RECIPIENT || process.env.EMAIL_REPLY_TO || "krx@heuv.dev";
+  const to = process.env.EMAIL_ALERT_RECIPIENT || process.env.EMAIL_REPLY_TO || "notopen@heuv.dev";
   const html = emailLayout({
     title,
     bodyHtml:

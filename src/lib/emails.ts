@@ -4,8 +4,8 @@
 
 import { appUrl, button, emailLayout, muted, paragraph, sendEmail } from "./email";
 
-const appName = process.env.NEXT_PUBLIC_APP_NAME || "KRX";
-const CONTACT = process.env.EMAIL_REPLY_TO || "krx@heuv.dev";
+const appName = process.env.NEXT_PUBLIC_APP_NAME || "NotOpen";
+const CONTACT = process.env.EMAIL_REPLY_TO || "notopen@heuv.dev";
 
 function fmtDate(d: Date = new Date()): string {
   return (

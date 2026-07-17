@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-const appName = "KRX";
+const appName = "NotOpen";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -68,7 +68,7 @@ function TermsContent() {
       </p>
       <h2>11. Contact</h2>
       <p>
-        For questions about these terms, contact <a href="mailto:krx@heuv.dev" className="text-[var(--landing-text)] underline">krx@heuv.dev</a>.
+        For questions about these terms, contact <a href="mailto:notopen@heuv.dev" className="text-[var(--landing-text)] underline">notopen@heuv.dev</a>.
       </p>
     </>
   );

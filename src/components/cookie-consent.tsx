@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 
-const CONSENT_KEY = "krx_cookie_consent";
+const CONSENT_KEY = "notopen_cookie_consent";
 
 export function CookieConsent() {
   const [visible, setVisible] = useState(false);

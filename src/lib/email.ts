@@ -38,7 +38,7 @@ export function hasEmail(): boolean {
 }
 
 export function emailFrom(): string {
-  return process.env.EMAIL_FROM || "KRX <krx@heuv.dev>";
+  return process.env.EMAIL_FROM || "NotOpen <notopen@heuv.dev>";
 }
 
 function parseFrom(): { email: string; name?: string } {
@@ -52,7 +52,7 @@ export function appUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3012";
 }
 
-const appName = process.env.NEXT_PUBLIC_APP_NAME || "KRX";
+const appName = process.env.NEXT_PUBLIC_APP_NAME || "NotOpen";
 
 export type SendEmailInput = {
   to: string;
@@ -177,7 +177,7 @@ export function emailLayout(opts: {
   const year = new Date().getFullYear();
   const base = appUrl();
   const preheader = opts.preheader || opts.title;
-  const address = process.env.EMAIL_COMPANY_ADDRESS || "KRX Labs · Private AI Infrastructure";
+  const address = process.env.EMAIL_COMPANY_ADDRESS || "NotOpen · Private AI Infrastructure";
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -210,7 +210,7 @@ export function emailLayout(opts: {
             <a href="${base}" style="color:#6b7280;text-decoration:none;">Help Center</a>
             &nbsp;·&nbsp;<a href="${base}/privacy" style="color:#6b7280;text-decoration:none;">Privacy Policy</a>
             &nbsp;·&nbsp;<a href="${base}/privacy" style="color:#6b7280;text-decoration:none;">Terms of Service</a>
-            &nbsp;·&nbsp;<a href="mailto:krx@heuv.dev" style="color:#6b7280;text-decoration:none;">Contact</a>
+            &nbsp;·&nbsp;<a href="mailto:notopen@heuv.dev" style="color:#6b7280;text-decoration:none;">Contact</a>
           </p>
           <p style="margin:0;font-size:11px;line-height:1.5;color:#9aa0ac;">
             ${address} &nbsp;·&nbsp; &copy; ${year} ${appName}. All rights reserved.

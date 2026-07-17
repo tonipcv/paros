@@ -3,9 +3,9 @@ import Stripe from "stripe";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
 
 const tiers = [
-  { plan: "STARTER", name: "KRX — Pro", amount: 1800, yearlyAmount: 19440, credits: 100 },
-  { plan: "PRO", name: "KRX — Pro+", amount: 6800, yearlyAmount: 73440, credits: 500 },
-  { plan: "MAX", name: "KRX — Max", amount: 20000, yearlyAmount: 216000, credits: 2500 },
+  { plan: "STARTER", name: "NotOpen — Pro", amount: 1800, yearlyAmount: 19440, credits: 100 },
+  { plan: "PRO", name: "NotOpen — Pro+", amount: 6800, yearlyAmount: 73440, credits: 500 },
+  { plan: "MAX", name: "NotOpen — Max", amount: 20000, yearlyAmount: 216000, credits: 2500 },
 ];
 
 async function main() {
@@ -14,7 +14,7 @@ async function main() {
     const product = await stripe.products.create({
       name: t.name,
       description: `${t.credits.toLocaleString()} credits / month`,
-      metadata: { app: "KRX", plan: t.plan, credits: String(t.credits) },
+      metadata: { app: "NotOpen", plan: t.plan, credits: String(t.credits) },
     });
 
     const price = await stripe.prices.create({

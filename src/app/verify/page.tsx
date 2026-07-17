@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-const appName = "KRX";
+const appName = "NotOpen";
 
 export default function VerifyPage() {
   const router = useRouter();
@@ -47,7 +47,7 @@ export default function VerifyPage() {
           <span className="text-[15px] font-semibold tracking-[0.08em] text-[var(--landing-text)]">{appName}</span>
         </Link>
         <Link href="/chat" className="rounded-lg bg-[var(--landing-chip)] px-4 py-2 text-[13px] font-medium text-[var(--landing-text)] transition hover:opacity-80">
-          Open KRX
+          Open NotOpen
         </Link>
       </div>
 
@@ -58,7 +58,7 @@ export default function VerifyPage() {
 
           {status === "success" ? (
             <Link href="/chat" className="flex h-11 w-full items-center justify-center rounded-lg bg-[var(--landing-button)] text-sm font-medium text-[var(--landing-button-text)] transition hover:opacity-90">
-              Continue to KRX
+              Continue to NotOpen
             </Link>
           ) : (
             <button onClick={resend} disabled={resending}

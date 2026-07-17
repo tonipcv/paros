@@ -27,7 +27,7 @@ const endpoint = await stripe.webhookEndpoints.create({
   url,
   enabled_events,
   metadata: {
-    app: "KRX",
+    app: "NotOpen",
     route: "/api/stripe/webhook",
     mode: secretKey.startsWith("sk_test_") ? "test" : "live",
   },

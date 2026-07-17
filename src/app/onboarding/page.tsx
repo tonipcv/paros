@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquare, Image as ImageIcon, Code2, ArrowRight } from "lucide-react";
 
-const appName = "KRX";
+const appName = "NotOpen";
 
 const goals = [
   { id: "chat", label: "Chat with AI models", icon: MessageSquare },
@@ -42,7 +42,7 @@ export default function OnboardingPage() {
         <div className="hidden max-w-xl lg:block">
           <p className="text-[13px] text-[var(--landing-faint)]">Workspace setup</p>
           <h1 className="font-display mt-4 text-[42px] font-medium leading-[1.02] text-[var(--landing-text)]">
-            Set up KRX.
+            Set up NotOpen.
           </h1>
         </div>
 

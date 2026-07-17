@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 
-const appName = "KRX";
+const appName = "NotOpen";
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function LoginPage() {
@@ -79,7 +79,7 @@ export default function LoginPage() {
 
         <div className="w-full rounded-[28px] bg-[var(--landing-card)] p-5 shadow-[var(--landing-card-shadow)] sm:p-7">
           <h2 className="font-display text-[32px] font-medium leading-tight text-[var(--landing-text)]">Sign in</h2>
-          <p className="mb-7 mt-2 text-sm text-[var(--landing-faint)]">Access your KRX workspace.</p>
+          <p className="mb-7 mt-2 text-sm text-[var(--landing-faint)]">Access your NotOpen workspace.</p>
 
         <a href="/api/auth/google" className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[var(--landing-chip)] text-sm font-medium text-[var(--landing-body)] transition hover:bg-[var(--landing-chip)] hover:text-[var(--landing-text)]">
           <svg className="h-4 w-4" viewBox="0 0 24 24">

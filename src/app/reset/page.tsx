@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-const appName = "KRX";
+const appName = "NotOpen";
 
 export default function ResetPage() {
   const router = useRouter();

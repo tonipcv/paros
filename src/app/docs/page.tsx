@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const appName = "KRX";
+const appName = "NotOpen";
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3012";
 
 function Code({ children }: { children: string }) {

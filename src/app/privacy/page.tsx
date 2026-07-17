@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-const appName = "KRX";
+const appName = "NotOpen";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -67,7 +67,7 @@ function PrivacyContent() {
       <h2>9. Changes to This Policy</h2>
       <p>We may update this policy from time to time. Material changes will be communicated via email or in-app notice.</p>
       <h2>10. Contact</h2>
-      <p>For privacy-related inquiries, contact <a href="mailto:krx@heuv.dev" className="text-[var(--landing-text)] underline">krx@heuv.dev</a>.</p>
+      <p>For privacy-related inquiries, contact <a href="mailto:notopen@heuv.dev" className="text-[var(--landing-text)] underline">notopen@heuv.dev</a>.</p>
     </>
   );
 }

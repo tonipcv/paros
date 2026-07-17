@@ -37,9 +37,9 @@ async function main() {
     await test("creates test-mode products and prices matching PLANS", async () => {
       for (const plan of paidPlans()) {
         const product = await stripe.products.create({
-          name: `KRX sandbox ${plan.id} ${Date.now()}`,
+          name: `NotOpen sandbox ${plan.id} ${Date.now()}`,
           description: `${plan.credits.toLocaleString("en-US")} credits / month`,
-          metadata: { app: "KRX", plan: plan.id, sandbox: "true" },
+          metadata: { app: "NotOpen", plan: plan.id, sandbox: "true" },
         });
         createdProducts.push(product.id);
 

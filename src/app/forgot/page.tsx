@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 
-const appName = "KRX";
+const appName = "NotOpen";
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function ForgotPage() {
