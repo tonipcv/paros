@@ -193,11 +193,22 @@
 
   .landing-model-logo {
     filter: grayscale(1) invert(1) contrast(1.25);
+    opacity: 0.45;
+    transition: filter 0.35s ease, opacity 0.35s ease, transform 0.35s ease;
+  }
+
+  .landing-model:hover .landing-model-logo {
+    filter: none;
+    opacity: 1;
+    transform: translateY(-1px);
   }
 
   @media (prefers-color-scheme: light) {
     .landing-model-logo {
       filter: grayscale(1) contrast(1.1);
+    }
+    .landing-model:hover .landing-model-logo {
+      filter: none;
     }
   }
 }

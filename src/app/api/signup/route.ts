@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     if (password.length < 8) return error("Password must be at least 8 characters");
     const ip = clientIp(request);
     const rl = await rateLimitShared(`signup:ip:${ip}`, 5, 3600);
-    if (!rl.ok) return error(`Too many sign-ups — try again in ${rl.retryAfter}s`, 429);
+    if (!rl.ok) return error(`Too many sign-ups. Try again in ${rl.retryAfter}s`, 429);
     const human = await verifyTurnstile(body.turnstileToken, request);
     if (!human.ok) return error(human.error, 400);
 

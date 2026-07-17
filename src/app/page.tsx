@@ -1,180 +1,146 @@
 import Link from "next/link";
-import { LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { LandingChatPrompt } from "@/components/landing-chat-prompt";
 import { LandingPricing } from "@/components/landing-pricing";
+import { Reveal } from "@/components/reveal";
+import { SiteHeader } from "@/components/site-header";
 
 const brandName = "NotOpen";
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3012";
 
 const faviconUrl = (domain: string) => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
 
 const models = [
   { name: "Claude", domain: "anthropic.com" },
-  { name: "OpenAI", domain: "openai.com" },
-  { name: "Google", domain: "google.com" },
+  { name: "GPT", domain: "openai.com" },
+  { name: "Gemini", domain: "google.com" },
   { name: "DeepSeek", domain: "deepseek.com" },
   { name: "Mistral", domain: "mistral.ai" },
-  { name: "Meta", domain: "meta.com" },
+  { name: "Llama", domain: "meta.com" },
   { name: "Qwen", domain: "qwen.ai" },
   { name: "Grok", domain: "x.ai" },
 ];
-
-const privacyTiers = [
-  ["Tier 1", "Anonymized", "Identifying metadata is stripped before requests are sent to external model providers."],
-  ["Tier 2", "Private", "Zero-retention routes for supported models, designed for sensitive conversations."],
-  ["Tier 3", "TEE", "Hardware-backed execution paths reduce platform access to private computation."],
-  ["Tier 4", "End-to-End Encrypted", "Client-side encryption protects backed-up conversations and long-running work."],
-];
+const privacyTiers = ["Anonymized", "Private", "TEE", "End-to-end encrypted"];
 
 export default function LandingPage() {
   return (
     <div className="landing-theme min-h-screen">
-      <header className="sticky top-0 z-40 bg-[var(--landing-bg)] backdrop-blur-xl">
-        <div className="mx-auto flex h-[68px] max-w-[1180px] items-center justify-between px-5">
-          <Link href="/" className="flex items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt={brandName} className="h-8 w-8 rounded-lg" />
-            <span className="text-[15px] font-semibold tracking-[0.08em] text-[var(--landing-text)]">{brandName}</span>
-          </Link>
-
-          <nav className="hidden items-center gap-7 text-[13px] text-[var(--landing-faint)] md:flex">
-            <a href="#about" className="transition hover:text-[var(--landing-text)]">About</a>
-            <a href="#privacy" className="transition hover:text-[var(--landing-text)]">Privacy</a>
-            <a href="#pricing" className="transition hover:text-[var(--landing-text)]">Pricing</a>
-            <a href="#api" className="transition hover:text-[var(--landing-text)]">API</a>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="rounded-lg px-3 py-2 text-[13px] text-[var(--landing-body)] transition hover:text-[var(--landing-text)]">
-              Log in
-            </Link>
-            <Link href="/signup" className="rounded-lg bg-[var(--landing-button)] px-4 py-2 text-[13px] font-medium text-[var(--landing-button-text)] transition hover:opacity-90">
-              Sign up
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main>
-        <section id="about" className="relative overflow-hidden">
-          <div className="absolute inset-x-0 top-0 -z-10 h-[720px] bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.13),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.04),transparent_42%)]" />
-          <div className="mx-auto max-w-[1180px] px-5 pb-20 pt-20 sm:pb-28 sm:pt-28">
-            <div className="mx-auto max-w-[760px] text-center">
-              <h1 className="font-display text-[44px] font-medium leading-[1] tracking-normal text-[var(--landing-text)] sm:text-[60px]">
-                Ask anything
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 -z-10 h-[720px] bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.12),transparent_38%)]" />
+          <div className="mx-auto max-w-[1080px] px-5 pb-24 pt-24 sm:pt-32">
+            <Reveal className="mx-auto max-w-[720px] text-center">
+              <h1 className="font-display text-[48px] font-medium leading-[1.02] text-[var(--landing-text)] sm:text-[64px]">
+                Ask anything.
               </h1>
-              <p className="mx-auto mt-6 max-w-[610px] text-[17px] leading-8 text-[var(--landing-muted)]">
-                Access leading AI models for text, image, video, audio, code, and agents with privacy-first routing.
+              <p className="mx-auto mt-6 max-w-[520px] text-[17px] leading-8 text-[var(--landing-muted)]">
+                Every frontier model, one private workspace.
               </p>
-            </div>
+            </Reveal>
 
-            <LandingChatPrompt />
+            <Reveal delay={0.12}>
+              <LandingChatPrompt />
+            </Reveal>
 
-            <div className="mx-auto mt-16 grid max-w-[980px] grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-              {models.map((model) => (
-                <div key={model.name} className="flex min-h-[78px] flex-col items-center justify-center gap-2 rounded-xl bg-[var(--landing-chip)] px-3 py-3 text-center text-[12px] text-[var(--landing-body)] shadow-[inset_0_1px_0_rgba(255,255,255,0.045)]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={faviconUrl(model.domain)}
-                    alt=""
-                    className="landing-model-logo h-6 w-6 opacity-80"
-                    loading="lazy"
-                  />
-                  <span>{model.name}</span>
-                </div>
-              ))}
-            </div>
+            <Reveal delay={0.2}>
+              <div className="mt-14 flex flex-wrap items-center justify-center gap-x-9 gap-y-4">
+                {models.map((model) => (
+                  <div
+                    key={model.name}
+                    className="landing-model flex cursor-default items-center gap-2 text-[13px] text-[var(--landing-faint)] transition-colors duration-300 hover:text-[var(--landing-text)]"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={faviconUrl(model.domain)}
+                      alt=""
+                      className="landing-model-logo h-4 w-4"
+                      loading="lazy"
+                    />
+                    <span>{model.name}</span>
+                  </div>
+                ))}
+              </div>
+            </Reveal>
           </div>
         </section>
 
-        <section id="privacy" className="bg-[var(--landing-bg-alt)]">
-          <div className="mx-auto max-w-[1180px] px-5 py-24">
-            <div className="mx-auto max-w-[720px] text-center">
-              <p className="text-[13px] text-[var(--landing-faint)]">Privacy first</p>
-              <h2 className="font-display mt-3 text-[30px] font-medium leading-[1.06] text-[var(--landing-text)] sm:text-[40px]">
+        <section id="privacy" className="border-t border-[var(--landing-chip)]">
+          <div className="mx-auto max-w-[1080px] px-5 py-24">
+            <Reveal className="mx-auto max-w-[640px] text-center">
+              <h2 className="font-display text-[30px] font-medium leading-[1.06] text-[var(--landing-text)] sm:text-[40px]">
                 The product is privacy.
               </h2>
               <p className="mt-4 text-[15px] leading-7 text-[var(--landing-muted)]">
-                Choose the privacy level that matches the work: anonymized, private, enclave-backed, or encrypted.
+                Choose the level that matches the work, from anonymized routing to end-to-end encryption.
               </p>
-            </div>
-            <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {privacyTiers.map(([tier, title, desc]) => (
-                <div key={title} className="rounded-[26px] bg-[var(--landing-card)] p-5 shadow-[var(--landing-card-shadow)]">
-                  <div className="mb-8 flex items-center justify-between">
-                    <span className="text-[12px] text-[var(--landing-faint)]">{tier}</span>
-                    {title === "End-to-End Encrypted" ? <LockKeyhole size={17} /> : <ShieldCheck size={17} />}
-                  </div>
-                  <h3 className="text-[15px] font-semibold text-[var(--landing-text)]">{title}</h3>
-                  <p className="mt-3 text-[13px] leading-6 text-[var(--landing-muted)]">{desc}</p>
-                </div>
-              ))}
-            </div>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+                {privacyTiers.map((tier) => (
+                  <span key={tier} className="rounded-full bg-[var(--landing-chip)] px-3.5 py-1.5 text-[12px] text-[var(--landing-body)]">
+                    {tier}
+                  </span>
+                ))}
+              </div>
+              <Link href="/how-it-works" className="mt-8 inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--landing-text)] hover:underline">
+                How it works <ArrowRight size={14} />
+              </Link>
+            </Reveal>
           </div>
         </section>
 
         <LandingPricing />
 
-        <section id="api" className="bg-[var(--landing-bg-alt)]">
-          <div className="mx-auto grid max-w-[1180px] gap-10 px-5 py-24 lg:grid-cols-[0.92fr_1.08fr]">
-            <div>
-              <p className="text-[13px] text-[var(--landing-faint)]">Developer API</p>
-              <h2 className="font-display mt-3 max-w-[520px] text-[30px] font-medium leading-[1.06] text-[var(--landing-text)] sm:text-[40px]">
-                Private access for builders
+        <section id="api" className="border-t border-[var(--landing-chip)]">
+          <div className="mx-auto grid max-w-[1080px] items-center gap-10 px-5 py-24 lg:grid-cols-[0.9fr_1.1fr]">
+            <Reveal>
+              <h2 className="font-display max-w-[480px] text-[30px] font-medium leading-[1.06] text-[var(--landing-text)] sm:text-[40px]">
+                One endpoint. Every model.
               </h2>
-              <p className="mt-5 max-w-[520px] text-[15px] leading-7 text-[var(--landing-muted)]">
-                OpenAI-compatible endpoints with the same privacy posture as the workspace.
+              <p className="mt-5 max-w-[480px] text-[15px] leading-7 text-[var(--landing-muted)]">
+                OpenAI-compatible API with the same privacy posture as the workspace.
               </p>
-            </div>
-            <div className="rounded-[26px] bg-[var(--landing-card)] p-4 shadow-[var(--landing-card-shadow)]">
-              <pre className="overflow-x-auto rounded-[16px] bg-black p-5 text-[12px] leading-6 text-[#cfcfcf]">
+              <Link href="/docs" className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--landing-text)] hover:underline">
+                Read the docs <ArrowRight size={14} />
+              </Link>
+            </Reveal>
+            <Reveal delay={0.1}>
+              <pre className="overflow-x-auto rounded-[18px] bg-black p-5 text-[12px] leading-6 text-[#cfcfcf] shadow-[var(--landing-card-shadow)]">
 {`const client = new OpenAI({
-  apiKey: process.env.PRIVATE_AI_KEY,
-  baseURL: "https://api.example.com/v1"
+  apiKey: process.env.NOTOPEN_API_KEY,
+  baseURL: "${appUrl}/api/v1"
 });
 
 await client.chat.completions.create({
-  model: "private-auto",
-  messages,
-  tools: ["search", "image", "speech"]
+  model: "notopen-auto",
+  messages
 });`}
               </pre>
-            </div>
+            </Reveal>
           </div>
         </section>
 
-        <section className="bg-[var(--landing-bg)]">
-          <div className="mx-auto max-w-[1180px] px-5 py-20 text-center">
-            <h2 className="font-display text-[30px] font-medium leading-[1.06] text-[var(--landing-text)] sm:text-[40px]">Start creating. Privately.</h2>
+        <section className="border-t border-[var(--landing-chip)]">
+          <Reveal className="mx-auto max-w-[1080px] px-5 py-24 text-center">
+            <h2 className="font-display text-[30px] font-medium leading-[1.06] text-[var(--landing-text)] sm:text-[40px]">
+              Start creating privately.
+            </h2>
             <div className="mt-8 flex justify-center">
               <Link href="/signup" className="rounded-lg bg-[var(--landing-button)] px-5 py-3 text-[13px] font-medium text-[var(--landing-button-text)] transition hover:opacity-90">
-                Sign Up for Free
+                Get started free
               </Link>
             </div>
-          </div>
+          </Reveal>
         </section>
       </main>
 
-      <footer className="bg-[var(--landing-bg)]">
-        <div className="mx-auto grid max-w-[1180px] gap-8 px-5 py-10 text-[13px] text-[var(--landing-faint)] sm:grid-cols-[1fr_auto_auto]">
-          <div>
-            <div className="flex items-center gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt={brandName} className="h-7 w-7 rounded-lg" />
-              <span className="font-semibold tracking-[0.08em] text-[var(--landing-text)]">{brandName}</span>
-            </div>
-            <p className="mt-4">Private, multimodal AI for everyone.</p>
-          </div>
-          <div className="grid gap-2">
-            <span className="font-medium text-[var(--landing-text)]">Product</span>
-            <a href="#privacy" className="hover:text-[var(--landing-text)]">Privacy</a>
-            <a href="#pricing" className="hover:text-[var(--landing-text)]">Pricing</a>
-            <a href="#api" className="hover:text-[var(--landing-text)]">API</a>
-          </div>
-          <div className="grid gap-2">
-            <span className="font-medium text-[var(--landing-text)]">Account</span>
-            <Link href="/login" className="hover:text-[var(--landing-text)]">Log in</Link>
-            <Link href="/signup" className="hover:text-[var(--landing-text)]">Sign up</Link>
-            <Link href="/privacy" className="hover:text-[var(--landing-text)]">Privacy</Link>
+      <footer className="border-t border-[var(--landing-chip)]">
+        <div className="mx-auto flex max-w-[1080px] flex-col items-center justify-between gap-4 px-5 py-8 text-[13px] text-[var(--landing-faint)] sm:flex-row">
+          <span>© {new Date().getFullYear()} {brandName}</span>
+          <div className="flex items-center gap-6">
+            <Link href="/privacy" className="transition hover:text-[var(--landing-text)]">Privacy</Link>
+            <Link href="/terms" className="transition hover:text-[var(--landing-text)]">Terms</Link>
+            <Link href="/docs" className="transition hover:text-[var(--landing-text)]">Docs</Link>
           </div>
         </div>
       </footer>

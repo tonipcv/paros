@@ -21,7 +21,7 @@ export default function VerifyPage() {
     setResending(true);
     const res = await fetch("/api/email/resend", { method: "POST" });
     setResending(false);
-    if (res.ok) toast.success("Verification email sent — check your inbox.");
+    if (res.ok) toast.success("Verification email sent. Check your inbox.");
     else if (res.status === 401) {
       toast.error("Please sign in first, then we&apos;ll resend the verification email.");
       setTimeout(() => router.replace("/login"), 1500);
@@ -44,7 +44,7 @@ export default function VerifyPage() {
         <Link href="/" className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt={appName} className="h-8 w-8 rounded-lg" />
-          <span className="text-[15px] font-semibold tracking-[0.08em] text-[var(--landing-text)]">{appName}</span>
+          <span className="font-display text-[21px] font-medium leading-none tracking-[0.01em] text-[var(--landing-text)]">{appName}</span>
         </Link>
         <Link href="/chat" className="rounded-lg bg-[var(--landing-chip)] px-4 py-2 text-[13px] font-medium text-[var(--landing-text)] transition hover:opacity-80">
           Open NotOpen

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     // Rate limit: 5 checkout sessions per minute per user
     const rl = await rateLimitShared(`checkout:${user.id}`, 5, 60);
     if (!rl.ok) {
-      return error(`Rate limited — try again in ${rl.retryAfter}s`, 429);
+      return error(`Rate limited. Try again in ${rl.retryAfter}s`, 429);
     }
 
     const body = await request.json().catch(() => null);

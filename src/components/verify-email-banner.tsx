@@ -19,7 +19,7 @@ export function VerifyEmailBanner() {
     setSending(true);
     const res = await fetch("/api/email/resend", { method: "POST" });
     setSending(false);
-    if (res.ok) toast.success("Verification email sent — check your inbox.");
+    if (res.ok) toast.success("Verification email sent. Check your inbox.");
     else if (res.status === 429) toast.error("Please wait a bit before requesting another email.");
     else toast.error("Could not send right now. Try again later.");
   }

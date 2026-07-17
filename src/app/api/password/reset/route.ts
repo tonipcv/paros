@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
     const ip = clientIp(request);
     const rl = await rateLimitShared(`pwreset:confirm:${ip}`, 20, 3600);
-    if (!rl.ok) return error(`Too many attempts — try again in ${rl.retryAfter}s`, 429);
+    if (!rl.ok) return error(`Too many attempts. Try again in ${rl.retryAfter}s`, 429);
 
     const record = await prisma.passwordResetToken.findUnique({
       where: { tokenHash: hashToken(token) },

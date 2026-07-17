@@ -19,9 +19,9 @@ export async function POST(request: Request) {
 
     const ip = clientIp(request);
     const ipLimit = await rateLimitShared(`pwreset:ip:${ip}`, 10, 3600);
-    if (!ipLimit.ok) return error(`Too many requests — try again in ${ipLimit.retryAfter}s`, 429);
+    if (!ipLimit.ok) return error(`Too many requests. Try again in ${ipLimit.retryAfter}s`, 429);
     const acctLimit = await rateLimitShared(`pwreset:acct:${email}`, 5, 3600);
-    if (!acctLimit.ok) return error(`Too many requests — try again in ${acctLimit.retryAfter}s`, 429);
+    if (!acctLimit.ok) return error(`Too many requests. Try again in ${acctLimit.retryAfter}s`, 429);
 
     const human = await verifyTurnstile(body.turnstileToken, request);
     if (!human.ok) return error(human.error, 400);

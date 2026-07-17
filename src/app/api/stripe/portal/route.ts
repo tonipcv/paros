@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     // Rate limit: 10 portal opens per minute per user
     const rl = await rateLimitShared(`portal:${user.id}`, 10, 60);
-    if (!rl.ok) return error(`Rate limited — try again in ${rl.retryAfter}s`, 429);
+    if (!rl.ok) return error(`Rate limited. Try again in ${rl.retryAfter}s`, 429);
 
     const sub = await prisma.subscription.findUnique({ where: { workspaceId: ws.id } });
     if (!sub?.stripeCustomerId) return error("No active subscription", 400);

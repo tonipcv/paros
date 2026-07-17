@@ -6,42 +6,34 @@ import { annualPlanPrice, formatCredits, formatPrice, paidPlans, type BillingCyc
 
 const planMarketing: Record<string, { desc: string; cta: string; popular?: boolean; features: (credits: number) => string[] }> = {
   STARTER: {
-    desc: "All models, full platform access.",
+    desc: "For everyday work.",
     cta: "Get Pro",
     features: (credits) => [
-      "All Pro and Advanced models",
-      "Unlimited text prompts",
-      "1,000 images per day",
-      "Generate video, music, and use frontier image and text models with credits",
-      "Image superpowers: upscale, remove backgrounds, create variants, and more",
-      "Character creation",
-      "Extended context windows for deep work and longer conversations",
-      "Encrypted chat backup and restore",
-      `${formatCredits(credits)} credits / month for video, music, premium models, and API`,
+      "All chat models, unlimited text",
+      `${formatCredits(credits)} credits / month`,
+      "Image generation",
       "API access",
     ],
   },
   PRO: {
-    desc: "Higher limits and credit banking.",
+    desc: "For heavy use.",
     cta: "Get Pro+",
     popular: true,
     features: (credits) => [
       "Everything in Pro",
-      "Higher image generation limits on Venice Pro models",
-      `${formatCredits(credits)} credits / month for video, music, frontier image generation, LLMs, and API`,
+      `${formatCredits(credits)} credits / month`,
+      "Priority inference and higher limits",
       "2-month credit banking",
-      "Annual billing discount",
     ],
   },
   MAX: {
-    desc: "Maximum capacity and dedicated throughput.",
+    desc: "For teams and builders.",
     cta: "Get Max",
     features: (credits) => [
       "Everything in Pro+",
-      "Highest image generation limits on Venice Pro models",
-      `${formatCredits(credits)} credits / month for video, music, frontier image generation, frontier LLMs, and API`,
-      "3-month credit banking",
-      "Annual billing discount",
+      `${formatCredits(credits)} credits / month`,
+      "Dedicated throughput",
+      "Priority support",
     ],
   },
 };
@@ -55,7 +47,7 @@ export function LandingPricing() {
       monthly: p.price,
       yearly: annualPlanPrice(p.price),
       desc: m?.desc ?? "",
-      cta: m?.cta ?? "Get Started",
+      cta: m?.cta ?? "Get started",
       popular: m?.popular ?? false,
       features: m?.features(p.credits) ?? p.features,
     };
@@ -88,12 +80,11 @@ export function LandingPricing() {
   }
 
   return (
-    <section id="pricing" className="bg-[var(--landing-bg)]">
-      <div className="mx-auto max-w-[1180px] px-5 py-24">
-        <div className="mx-auto max-w-[720px] text-center">
-          <p className="text-[13px] text-[var(--landing-faint)]">Pricing</p>
-          <h2 className="font-display mt-3 text-[30px] font-medium leading-[1.06] text-[var(--landing-text)] sm:text-[40px]">
-            Plans
+    <section id="pricing" className="border-t border-[var(--landing-chip)]">
+      <div className="mx-auto max-w-[1080px] px-5 py-24">
+        <div className="mx-auto max-w-[640px] text-center">
+          <h2 className="font-display text-[30px] font-medium leading-[1.06] text-[var(--landing-text)] sm:text-[40px]">
+            Pricing
           </h2>
           <div className="mx-auto mt-7 inline-flex rounded-full bg-[var(--landing-card)] p-1 text-[12px] shadow-[var(--landing-card-shadow)]">
             <button
@@ -121,30 +112,30 @@ export function LandingPricing() {
           {plans.map((plan) => {
             const key = `${plan.id}-${cycle}`;
             return (
-              <div key={plan.id} className={`relative rounded-[28px] p-6 shadow-[var(--landing-card-shadow)] ${plan.popular ? "bg-[var(--landing-card)]" : "bg-[var(--landing-card)]"}`}>
+              <div key={plan.id} className="relative rounded-[24px] bg-[var(--landing-card)] p-6 shadow-[var(--landing-card-shadow)]">
                 {plan.popular ? (
                   <span className="absolute right-5 top-5 rounded-full bg-[var(--landing-button)] px-3 py-1 text-[11px] font-medium text-[var(--landing-button-text)]">
-                    Most Popular
+                    Popular
                   </span>
                 ) : null}
-                <h3 className="text-[18px] font-semibold text-[var(--landing-text)]">{plan.name}</h3>
-                <p className="mt-3 min-h-[48px] max-w-[280px] text-[13px] leading-6 text-[var(--landing-muted)]">{plan.desc}</p>
-                <div className="mt-7 flex items-end gap-1">
-                  <span className="text-[38px] font-semibold leading-none text-[var(--landing-text)]">
+                <h3 className="text-[16px] font-semibold text-[var(--landing-text)]">{plan.name}</h3>
+                <p className="mt-1.5 text-[13px] text-[var(--landing-muted)]">{plan.desc}</p>
+                <div className="mt-6 flex items-end gap-1">
+                  <span className="text-[34px] font-semibold leading-none text-[var(--landing-text)]">
                     ${formatPrice(cycle === "monthly" ? plan.monthly : plan.yearly)}
                   </span>
-                  <span className="pb-1.5 text-[14px] text-[var(--landing-faint)]">/{cycle === "monthly" ? "mo" : "yr"}</span>
+                  <span className="pb-1 text-[13px] text-[var(--landing-faint)]">/{cycle === "monthly" ? "mo" : "yr"}</span>
                 </div>
-                {cycle === "yearly" ? <p className="mt-2 text-[12px] text-[var(--landing-faint)]">Equivalent to 12 months with a 10% annual discount.</p> : null}
+                {cycle === "yearly" ? <p className="mt-2 text-[12px] text-[var(--landing-faint)]">10% annual discount applied.</p> : null}
                 <button
                   type="button"
                   disabled={loading === key}
                   onClick={() => checkout(plan.id)}
-                  className={`mt-7 flex h-10 w-full items-center justify-center rounded-lg text-[13px] font-medium transition disabled:opacity-60 ${plan.popular ? "bg-[var(--landing-button)] text-[var(--landing-button-text)] hover:opacity-90" : "bg-[var(--landing-chip)] text-[var(--landing-text)] hover:bg-white/[0.1]"}`}
+                  className={`mt-6 flex h-10 w-full items-center justify-center rounded-lg text-[13px] font-medium transition disabled:opacity-60 ${plan.popular ? "bg-[var(--landing-button)] text-[var(--landing-button-text)] hover:opacity-90" : "bg-[var(--landing-chip)] text-[var(--landing-text)] hover:bg-white/[0.1]"}`}
                 >
                   {loading === key ? "Opening checkout..." : plan.cta}
                 </button>
-                <ul className="mt-7 space-y-3.5">
+                <ul className="mt-6 space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex gap-2.5 text-[13px] leading-5 text-[var(--landing-muted)]">
                       <Check size={15} className="mt-0.5 shrink-0 text-[var(--landing-text)]" />

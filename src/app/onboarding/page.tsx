@@ -34,7 +34,7 @@ export default function OnboardingPage() {
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt={appName} className="h-8 w-8 rounded-lg" />
-          <span className="text-[15px] font-semibold tracking-[0.08em] text-[var(--landing-text)]">{appName}</span>
+          <span className="font-display text-[21px] font-medium leading-none tracking-[0.01em] text-[var(--landing-text)]">{appName}</span>
         </div>
       </div>
 

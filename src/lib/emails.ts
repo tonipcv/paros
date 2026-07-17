@@ -23,7 +23,7 @@ export async function sendWelcomeEmail(to: string, name?: string) {
       bodyHtml:
         paragraph(`Hello${name ? ` ${name}` : ""},`) +
         paragraph(
-          `Thank you for creating a ${appName} account. Your private AI workspace is now active. You can chat with frontier and open models, generate images, and select the privacy posture that fits your work — from zero-retention routing to hardware-attested TEE and end-to-end encryption.`
+          `Thank you for creating a ${appName} account. Your private AI workspace is now active. You can chat with frontier and open models, generate images, and select the privacy posture that fits your work, from zero-retention routing to hardware-attested TEE and end-to-end encryption.`
         ) +
         `<p style="margin:0 0 8px;">${button(`${appUrl()}/chat`, "Open your workspace")}</p>`,
       footer: `You are receiving this message because an account was created with this email address at ${appName}. If this was not you, please contact ${CONTACT}.`,
@@ -47,7 +47,7 @@ export async function sendPasswordResetEmail(to: string, link: string) {
         `<p style="margin:0 0 22px;">${button(link, "Reset password")}</p>` +
         paragraph("If the button above does not work, copy and paste the following link into your browser:") +
         muted(link),
-      footer: `If you did not request a password reset, no action is required — your password will remain unchanged. For assistance, contact ${CONTACT}.`,
+      footer: `If you did not request a password reset, no action is required. Your password will remain unchanged. For assistance, contact ${CONTACT}.`,
     }),
     text: `Password reset request\n\nWe received a request to reset the password for your ${appName} account. Use the secure link below (expires in 1 hour, single use):\n${link}\n\nIf you did not request this, no action is required.`,
   });
@@ -145,7 +145,7 @@ export async function sendApiKeyCreatedEmail(to: string, keyName: string) {
       bodyHtml:
         paragraph("Hello,") +
         paragraph(
-          `A new API key named <b>${keyName}</b> was created on your ${appName} account on <b>${fmtDate()}</b>. Keep your API keys secret — anyone with a key can use your credits.`
+          `A new API key named <b>${keyName}</b> was created on your ${appName} account on <b>${fmtDate()}</b>. Keep your API keys secret; anyone with a key can use your credits.`
         ) +
         `<p style="margin:0 0 8px;">${button(`${appUrl()}/keys`, "Manage API keys")}</p>`,
       footer: `If you did not create this key, revoke it immediately from the API keys page and contact ${CONTACT}.`,
