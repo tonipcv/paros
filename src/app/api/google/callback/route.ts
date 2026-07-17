@@ -13,6 +13,11 @@ export async function GET(request: Request) {
   const savedState = store.get("oauth_state")?.value;
 
   if (!code || !state || state !== savedState) {
+    console.error("google_oauth_state_mismatch", {
+      hasCode: Boolean(code),
+      hasState: Boolean(state),
+      hasSavedState: Boolean(savedState),
+    });
     return NextResponse.redirect(`${appUrl}/login?error=oauth_failed`);
   }
 
@@ -29,7 +34,9 @@ export async function GET(request: Request) {
       }),
     });
     const tokens = await tokenRes.json();
-    if (!tokens.access_token) throw new Error("No access token");
+    if (!tokens.access_token) {
+      throw new Error(`token_exchange_failed: ${tokens.error || "?"} ${tokens.error_description || ""}`);
+    }
 
     const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
@@ -43,7 +50,8 @@ export async function GET(request: Request) {
     await setSessionCookie(token);
     store.delete("oauth_state");
     return NextResponse.redirect(`${appUrl}/chat`);
-  } catch {
+  } catch (e) {
+    console.error("google_oauth_failed", e instanceof Error ? e.message : e);
     return NextResponse.redirect(`${appUrl}/login?error=oauth_failed`);
   }
 }
