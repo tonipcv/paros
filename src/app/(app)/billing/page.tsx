@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
 import { annualMonthlyEquivalent, annualPlanPrice, formatPrice, PLANS, type BillingCycle } from "@/lib/models";
 import { ExternalLink } from "lucide-react";
+import { PageContainer, PageHeader, SegmentedControl, Badge } from "@/components/ui";
 
 type HistoryData = {
   subscription: {
@@ -90,53 +91,40 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-      <div className="mb-6">
-        <h1 className="text-h1 text-grad-light">Billing</h1>
-        <p className="mt-1 text-sm text-muted">
-          Current plan: <span className="text-primary">{workspace?.plan || "FREE"}</span> ·{" "}
-          {workspace?.credits?.toLocaleString() ?? 0} credits
-        </p>
-        {workspace?.plan && workspace.plan !== "FREE" && (
-          <button onClick={openPortal} disabled={loading === "portal"} className="btn-secondary mt-3">
-            {loading === "portal" ? "Opening…" : "Manage subscription"}
-          </button>
-        )}
-      </div>
+    <PageContainer width="default">
+      <PageHeader
+        title="Billing"
+        description={`${workspace?.plan || "FREE"} plan. ${(workspace?.credits ?? 0).toLocaleString()} credits.`}
+        actions={
+          workspace?.plan && workspace.plan !== "FREE" ? (
+            <button onClick={openPortal} disabled={loading === "portal"} className="btn-secondary">
+              {loading === "portal" ? "Opening…" : "Manage subscription"}
+            </button>
+          ) : null
+        }
+      />
 
       {hasYearly && (
-        <div className="mb-6 flex items-center justify-center">
-          <div className="flex rounded-btn border border-borderDefault p-0.5 text-[12px]">
-            <button
-              onClick={() => setBillingCycle("monthly")}
-              className={`rounded-[6px] px-4 py-1.5 transition ${
-                billingCycle === "monthly" ? "bg-bgActive text-primary" : "text-tertiary hover:text-primary"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setBillingCycle("yearly")}
-              className={`flex items-center gap-1 rounded-[6px] px-4 py-1.5 transition ${
-                billingCycle === "yearly" ? "bg-bgActive text-primary" : "text-tertiary hover:text-primary"
-              }`}
-            >
-              Yearly
-              <span className="rounded bg-highlight/20 px-1.5 py-0.5 text-[10px] text-highlight">
-                Save 10%
-              </span>
-            </button>
-          </div>
+        <div className="mb-8 flex items-center justify-center">
+          <SegmentedControl
+            ariaLabel="Billing cycle"
+            value={billingCycle}
+            onChange={setBillingCycle}
+            options={[
+              { value: "monthly", label: "Monthly" },
+              { value: "yearly", label: "Yearly" },
+            ]}
+          />
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 divide-y divide-borderDefault border-t border-borderDefault sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         {PLANS.map((plan) => {
           const current = workspace?.plan === plan.id;
           const price = billingCycle === "yearly" ? annualMonthlyEquivalent(plan.price) : plan.price;
           const yearlyTotal = billingCycle === "yearly" ? annualPlanPrice(plan.price) : null;
           return (
-            <div key={plan.id} className={`card flex flex-col p-5 ${current ? "border-highlight/40" : ""}`}>
+            <div key={plan.id} className="flex flex-col px-5 py-6">
               <p className="text-[13px] font-semibold text-primary">{plan.name}</p>
               <p className="mt-2">
                 <span className="text-2xl font-semibold text-grad-stat">${formatPrice(price)}</span>
@@ -166,56 +154,55 @@ export default function BillingPage() {
         })}
       </div>
 
-      {/* Billing history (Stripe subscription + invoices) */}
       {history?.subscription && (
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold text-primary">Billing history</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            <div className="card p-4">
+        <section className="mt-8 border-t border-borderDefault pt-8">
+          <h2 className="text-h2 text-primary">Billing history</h2>
+          <div className="mt-4 grid grid-cols-1 divide-y divide-borderDefault border-t border-borderDefault sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <div className="py-4 sm:py-0 sm:pr-4">
               <p className="text-[11px] uppercase tracking-wide text-tertiary">Status</p>
               <p className="mt-1 text-sm font-semibold text-primary capitalize">{history.subscription.status}</p>
-              {history.subscription.cancelAtPeriodEnd && <p className="mt-0.5 text-[11px] text-amber-400">Cancels at period end</p>}
+              {history.subscription.cancelAtPeriodEnd && <p className="mt-1"><Badge variant="warning">Cancels at period end</Badge></p>}
             </div>
-            <div className="card p-4">
+            <div className="py-4 sm:py-0 sm:px-4">
               <p className="text-[11px] uppercase tracking-wide text-tertiary">Next billing</p>
               <p className="mt-1 text-sm font-semibold text-primary">
                 {history.subscription.currentPeriodEnd
                   ? new Date(history.subscription.currentPeriodEnd).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
-                  : "—"}
+                  : "Not scheduled"}
               </p>
             </div>
-            <div className="card p-4">
+            <div className="py-4 sm:py-0 sm:pl-4">
               <p className="text-[11px] uppercase tracking-wide text-tertiary">Credits per renewal</p>
               <p className="mt-1 text-sm font-semibold text-primary">{history.subscription.credits.toLocaleString()}</p>
             </div>
           </div>
 
           {history.invoices.length > 0 && (
-            <div className="mt-4 overflow-x-auto">
+            <div className="mt-6 overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-borderDefault text-[11px] uppercase tracking-wide text-tertiary">
-                    <th className="px-3 py-2.5 font-medium">Invoice</th>
-                    <th className="px-3 py-2.5 font-medium">Period</th>
-                    <th className="px-3 py-2.5 font-medium">Amount</th>
-                    <th className="px-3 py-2.5 font-medium hidden sm:table-cell">Status</th>
-                    <th className="px-3 py-2.5 font-medium">Receipt</th>
+                  <tr className="border-t border-borderDefault text-[11px] uppercase tracking-wide text-tertiary">
+                    <th className="py-2.5 pr-3 font-medium">Invoice</th>
+                    <th className="py-2.5 pr-3 font-medium">Period</th>
+                    <th className="py-2.5 pr-3 font-medium">Amount</th>
+                    <th className="py-2.5 pr-3 font-medium hidden sm:table-cell">Status</th>
+                    <th className="py-2.5 font-medium">Receipt</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-borderDefault">
                   {history.invoices.slice(0, 24).map((inv) => (
                     <tr key={inv.id} className="hover:bg-bgHover">
-                      <td className="px-3 py-2.5 text-[13px] text-primary">{inv.number}</td>
-                      <td className="px-3 py-2.5 text-[12px] text-muted">
+                      <td className="py-2.5 pr-3 text-[13px] text-primary">{inv.number}</td>
+                      <td className="py-2.5 pr-3 text-[12px] text-muted">
                         {new Date(inv.periodStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </td>
-                      <td className="px-3 py-2.5 text-[13px] text-primary">
+                      <td className="py-2.5 pr-3 text-[13px] text-primary">
                         {inv.currency.toUpperCase()} {inv.amount.toFixed(2)}
                       </td>
-                      <td className="px-3 py-2.5 hidden sm:table-cell">
-                        <span className={`text-[12px] capitalize ${inv.status === "paid" ? "text-emerald-400" : "text-muted"}`}>{inv.status}</span>
+                      <td className="py-2.5 pr-3 hidden sm:table-cell">
+                        {inv.status === "paid" ? <Badge variant="success">Paid</Badge> : <span className="text-[12px] capitalize text-muted">{inv.status}</span>}
                       </td>
-                      <td className="px-3 py-2.5">
+                      <td className="py-2.5">
                         {inv.hostedUrl && (
                           <a href={inv.hostedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[12px] text-tertiary hover:text-primary">
                             <ExternalLink size={13} /> View
@@ -228,8 +215,8 @@ export default function BillingPage() {
               </table>
             </div>
           )}
-        </div>
+        </section>
       )}
-    </div>
+    </PageContainer>
   );
 }

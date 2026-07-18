@@ -5,6 +5,7 @@ import { Wand2, Loader2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
 import { IMAGE_STYLES } from "@/lib/models";
+import { EmptyState, PageContainer, PageHeader } from "@/components/ui";
 
 type Img = { id: string; prompt: string; url: string; style: string; createdAt: string };
 
@@ -59,22 +60,20 @@ export default function StudioPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-      <div className="mb-6">
-        <h1 className="text-h1 text-grad-light">Image Studio</h1>
-        <p className="mt-1 text-sm text-muted">Generate from text, or upload an image to edit it.</p>
-      </div>
+    <PageContainer width="wide">
+      <PageHeader title="Image Studio" description="Generate from text, or upload an image to edit it." />
 
       <div className="grid gap-6 lg:grid-cols-[380px_1fr]">
-        <div className="card h-fit p-5">
-          <label className="label">Base image (optional - for editing)</label>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files)} />
+        <div className="h-fit border-t border-borderDefault pt-8">
+          <label className="label" htmlFor="studio-file">Base image (optional)</label>
+          <input ref={fileRef} id="studio-file" type="file" accept="image/*" hidden onChange={(e) => onFile(e.target.files)} />
           {inputImage ? (
             <div className="relative mb-4 w-fit">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={inputImage} alt="base" className="h-28 w-28 rounded-lg border border-borderDefault object-cover" />
               <button
                 onClick={() => setInputImage(null)}
+                aria-label="Remove base image"
                 className="absolute -right-2 -top-2 grid h-6 w-6 place-items-center rounded-full bg-bg text-muted hover:text-danger"
               >
                 <X size={13} />
@@ -89,8 +88,9 @@ export default function StudioPage() {
             </button>
           )}
 
-          <label className="label">{inputImage ? "Edit instruction" : "Prompt"}</label>
+          <label className="label" htmlFor="studio-prompt">{inputImage ? "Edit instruction" : "Prompt"}</label>
           <textarea
+            id="studio-prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={4}
@@ -121,16 +121,13 @@ export default function StudioPage() {
             className="btn-primary mt-5 h-11 w-full"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
-            {loading ? "Working…" : inputImage ? "Edit image (6 credits)" : "Generate (5 credits)"}
+            {loading ? "Generating…" : inputImage ? "Edit image (6 credits)" : "Generate (5 credits)"}
           </button>
         </div>
 
         <div>
           {images.length === 0 ? (
-            <div className="flex h-64 flex-col items-center justify-center rounded-card border border-dashed border-borderDefault text-center">
-              <Wand2 size={24} className="mb-2 text-tertiary" />
-              <p className="text-sm text-muted">Your generations will appear here</p>
-            </div>
+            <EmptyState icon={Wand2} title="No images yet" description="Your generations will appear here." />
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {images.map((img) => (
@@ -146,6 +143,6 @@ export default function StudioPage() {
           )}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

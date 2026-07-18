@@ -30,6 +30,7 @@ import { useAppStore } from "@/store/useAppStore";
 import type { ChatModel } from "@/lib/models";
 import { VOICES } from "@/lib/models";
 import { Markdown } from "@/components/markdown";
+import { Dropdown, Modal } from "@/components/ui";
 import { encryptText, decryptText } from "@/lib/e2e";
 import { sealChat, openStreamDelta } from "@/lib/e2e-seal";
 import { phalaE2eeModel } from "@/lib/privacy-router";
@@ -599,7 +600,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-full">
-      <div className="hidden w-60 shrink-0 flex-col border-r border-borderDefault md:flex">
+      <div className="hidden w-[252px] shrink-0 flex-col border-r border-borderDefault bg-bgPage/60 md:flex">
         <div className="space-y-2 p-3">
           <button onClick={newConvo} className="btn-secondary w-full">
             <Plus size={15} /> New chat
@@ -634,11 +635,16 @@ export default function ChatPage() {
             >
               {c.encrypted && <Lock size={12} className="shrink-0 text-tertiary" />}
               <span className="min-w-0 flex-1 truncate">{c.displayTitle || c.title}</span>
-              <Trash2
-                size={13}
+              <span
+                role="button"
+                tabIndex={0}
+                aria-label="Delete conversation"
                 onClick={(e) => deleteConvo(c.id, e)}
-                className="shrink-0 text-tertiary opacity-0 transition hover:text-danger group-hover:opacity-100"
-              />
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") deleteConvo(c.id, e as unknown as React.MouseEvent); }}
+                className="shrink-0 text-tertiary opacity-0 transition hover:text-danger focus:opacity-100 group-hover:opacity-100"
+              >
+                <Trash2 size={13} />
+              </span>
             </button>
           ))}
           {convos.length === 0 && <p className="px-2.5 py-3 text-xs text-tertiary">No conversations yet</p>}
@@ -646,28 +652,31 @@ export default function ChatPage() {
         <div className="border-t border-borderDefault px-3 py-2 text-[10px] text-tertiary">
           {storageMode === "local"
             ? "Stored only on this device. Never sent to our servers."
-            : "Encrypted sync — stored as ciphertext only."}
+            : "Encrypted sync. Stored as ciphertext only."}
         </div>
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-borderDefault px-4">
-          <div className="relative">
-            <button
-              onClick={() => setModelOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-btn border border-borderDefault bg-surface px-3 py-1.5 text-[13px] text-primary hover:border-borderHover"
-            >
-              <span className="font-medium">{activeModel?.name || "Select model"}</span>
-              <ChevronDown size={14} className="text-muted" />
-            </button>
-            {modelOpen && (
-              <div className="absolute left-0 top-full z-30 mt-2 max-h-96 w-72 overflow-auto rounded-card border border-borderDefault bg-surface p-1 shadow-card-hover">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-borderDefault bg-bgPage/80 px-4 backdrop-blur-xl">
+          <Dropdown
+            open={modelOpen}
+            onOpenChange={(v) => { setModelOpen(v); if (v) { setPrivacyOpen(false); setSettingsOpen(false); } }}
+            width="w-80"
+            trigger={
+              <button aria-label="Select model" className="flex h-8 items-center gap-2 rounded-btn border border-borderDefault bg-surface px-3 text-[12px] font-medium text-primary transition hover:border-borderHover">
+                <span>{activeModel?.name || "Select model"}</span>
+                <ChevronDown size={14} className="text-muted" />
+              </button>
+            }
+          >
+            {(close) => (
+              <div className="max-h-96 overflow-auto">
                 {chatModels.map((m) => (
                   <button
                     key={m.id}
                     onClick={() => {
                       setModel(m.id);
-                      setModelOpen(false);
+                      close();
                     }}
                     className={`flex w-full flex-col rounded-lg px-3 py-2 text-left transition hover:bg-bgHover ${
                       model === m.id ? "bg-bgActive" : ""
@@ -688,38 +697,47 @@ export default function ChatPage() {
                 ))}
               </div>
             )}
-          </div>
+          </Dropdown>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setTemporary((v) => !v)}
-              title="Temporary chat — not saved anywhere"
-              className={`flex items-center gap-1.5 rounded-btn border px-2.5 py-1.5 text-[12px] font-medium transition ${
+              title="Temporary chat, not saved anywhere"
+              aria-label="Temporary chat, not saved anywhere"
+              aria-pressed={temporary}
+              className={`grid h-8 w-8 place-items-center rounded-btn border transition ${
                 temporary
                   ? "border-highlight bg-highlight text-bg"
                   : "border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
               }`}
             >
-              <MessageSquareOff size={14} /> Temporary
+              <MessageSquareOff size={14} />
             </button>
-            <div className="relative">
-              <button
-                onClick={() => { setPrivacyOpen((v) => !v); setModelOpen(false); setSettingsOpen(false); }}
-                className={`flex items-center gap-1.5 rounded-btn border px-2.5 py-1.5 text-[12px] font-medium transition ${
-                  privacyMode !== "private"
-                    ? "border-highlight bg-highlight text-bg"
-                    : "border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
-                }`}
-              >
-                {privacyMode === "anonymous" && <EyeOff size={14} />}
-                {privacyMode === "private" && <ShieldCheck size={14} />}
-                {privacyMode === "tee" && <Lock size={14} />}
-                {privacyMode === "e2ee" && <ShieldClose size={14} />}
-                {privacyMode.charAt(0).toUpperCase() + privacyMode.slice(1)}
-                <ChevronDown size={12} className="text-muted" />
-              </button>
-              {privacyOpen && (
-                <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-card border border-borderDefault bg-surface p-1.5 shadow-card-hover">
+            <Dropdown
+              open={privacyOpen}
+              onOpenChange={(v) => { setPrivacyOpen(v); if (v) { setModelOpen(false); setSettingsOpen(false); } }}
+              align="right"
+              width="w-72"
+              trigger={
+                <button
+                  aria-label={`Privacy mode: ${privacyMode}`}
+                  className={`flex h-8 items-center gap-1.5 rounded-btn border px-2.5 text-[12px] font-medium transition ${
+                    privacyMode !== "private"
+                      ? "border-highlight bg-highlight text-bg"
+                      : "border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
+                  }`}
+                >
+                  {privacyMode === "anonymous" && <EyeOff size={14} />}
+                  {privacyMode === "private" && <ShieldCheck size={14} />}
+                  {privacyMode === "tee" && <Lock size={14} />}
+                  {privacyMode === "e2ee" && <ShieldClose size={14} />}
+                  {privacyMode.charAt(0).toUpperCase() + privacyMode.slice(1)}
+                  <ChevronDown size={12} className="text-muted" />
+                </button>
+              }
+            >
+              {(close) => (
+                <>
                   {(["anonymous", "private", "tee", "e2ee"] as PrivacyMode[]).map((m) => {
                     const labels: Record<PrivacyMode, { icon: any; desc: string }> = {
                       anonymous: { icon: EyeOff, desc: "Frontier models. Identity hidden. Provider may retain." },
@@ -738,7 +756,7 @@ export default function ChatPage() {
                         onClick={() => {
                           if (disabled) return;
                           setPrivacyMode(m);
-                          setPrivacyOpen(false);
+                          close();
                         }}
                         disabled={disabled}
                         className={`flex w-full items-start gap-2 rounded-lg px-3 py-2.5 text-left transition ${
@@ -769,26 +787,26 @@ export default function ChatPage() {
                       </button>
                     );
                   })}
-                </div>
+                </>
               )}
-            </div>
-            <div className="relative">
-              <button
-                onClick={() => setSettingsOpen((v) => !v)}
-                className="grid h-8 w-8 place-items-center rounded-btn border border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
-              >
-                <Settings2 size={15} />
-              </button>
-              {settingsOpen && (
-                <div className="absolute right-0 top-full z-30 mt-2 w-80 rounded-card border border-borderDefault bg-surface p-4 shadow-card-hover">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-[13px] font-semibold text-primary">Model settings</p>
-                    <button onClick={() => setSettingsOpen(false)} className="text-muted hover:text-primary">
-                      <X size={15} />
-                    </button>
-                  </div>
-                  <label className="label">Temperature: {temperature.toFixed(2)}</label>
+            </Dropdown>
+            <Dropdown
+              open={settingsOpen}
+              onOpenChange={(v) => { setSettingsOpen(v); if (v) { setModelOpen(false); setPrivacyOpen(false); } }}
+              align="right"
+              width="w-80"
+              trigger={
+                <button aria-label="Model settings" className="grid h-8 w-8 place-items-center rounded-btn border border-borderDefault text-secondary transition hover:border-borderHover hover:text-primary">
+                  <Settings2 size={15} />
+                </button>
+              }
+            >
+              {(close) => (
+                <div className="p-2.5">
+                  <p className="mb-3 text-[13px] font-semibold text-primary">Model settings</p>
+                  <label className="label" htmlFor="chat-temperature">Temperature: {temperature.toFixed(2)}</label>
                   <input
+                    id="chat-temperature"
                     type="range"
                     min={0}
                     max={2}
@@ -797,24 +815,25 @@ export default function ChatPage() {
                     onChange={(e) => setTemperature(Number(e.target.value))}
                     className="w-full accent-highlight"
                   />
-                  <label className="label mt-3">System prompt</label>
+                  <label className="label mt-3" htmlFor="chat-system-prompt">System prompt</label>
                   <textarea
+                    id="chat-system-prompt"
                     value={systemPrompt}
                     onChange={(e) => setSystemPrompt(e.target.value)}
                     rows={3}
                     placeholder="You are a helpful assistant…"
                     className="input min-h-[70px] resize-y py-2"
                   />
-                  <label className="label mt-3">Voice (TTS)</label>
-                  <select className="input" value={voice} onChange={(e) => setVoice(e.target.value)}>
+                  <label className="label mt-3" htmlFor="chat-voice">Voice (TTS)</label>
+                  <select id="chat-voice" className="input" value={voice} onChange={(e) => setVoice(e.target.value)}>
                     {VOICES.map((v) => (
                       <option key={v.id} value={v.id}>{v.name}</option>
                     ))}
                   </select>
-                  <button onClick={() => setSettingsOpen(false)} className="btn-primary mt-4 w-full">Apply</button>
+                  <button onClick={close} className="btn-primary mt-4 w-full">Apply</button>
                 </div>
               )}
-            </div>
+            </Dropdown>
           </div>
         </div>
 
@@ -822,19 +841,12 @@ export default function ChatPage() {
           <div className="mx-auto max-w-3xl px-4 py-6">
             {temporary && (
               <div className="mb-4 flex items-center justify-center gap-2 rounded-btn border border-borderDefault bg-surface px-3 py-2 text-[12px] text-muted">
-                <MessageSquareOff size={13} /> Temporary chat — this conversation will not be saved.
-              </div>
-            )}
-            {!temporary && privacyMode !== "private" && (
-              <div className="mb-4 flex items-center justify-center gap-2 rounded-btn border border-borderDefault bg-surface px-3 py-2 text-[12px] text-muted">
-                {privacyMode === "anonymous" && <><EyeOff size={13} /> Anonymous mode — provider may retain prompts.</>}
-                {privacyMode === "tee" && <><Lock size={13} /> TEE mode — attested hardware enclave; GPU host cannot read prompts.</>}
-                {privacyMode === "e2ee" && <><ShieldClose size={13} /> E2EE mode — sealed on your device to the attested enclave (secp256k1); our server only relays ciphertext.</>}
+                <MessageSquareOff size={13} /> Temporary chat. This conversation will not be saved.
               </div>
             )}
             {messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center py-28 text-center">
-                <h2 className="text-3xl font-medium text-primary">How can I help?</h2>
+                <h2 className="font-display text-[34px] font-medium leading-tight text-primary">How can I help?</h2>
               </div>
             ) : (
               <div className="space-y-7">
@@ -875,6 +887,7 @@ export default function ChatPage() {
                             <button
                               onClick={() => copyMsg(m)}
                               title="Copy"
+                              aria-label="Copy message"
                               className="grid h-7 w-7 place-items-center rounded-btn text-tertiary transition hover:bg-bgHover hover:text-primary"
                             >
                               {copiedId === m.id ? <Check size={14} /> : <Copy size={14} />}
@@ -882,6 +895,7 @@ export default function ChatPage() {
                             <button
                               onClick={() => speak(m)}
                               title="Read aloud"
+                              aria-label="Read message aloud"
                               className="grid h-7 w-7 place-items-center rounded-btn text-tertiary transition hover:bg-bgHover hover:text-primary"
                             >
                               <Volume2 size={14} className={playingId === m.id ? "text-highlight" : ""} />
@@ -897,9 +911,9 @@ export default function ChatPage() {
           </div>
         </div>
 
-        <div className="shrink-0 px-4 pb-4">
+        <div className="shrink-0 bg-gradient-to-t from-bgPage via-bgPage/95 to-transparent px-4 pb-4 pt-6">
           <div className="mx-auto max-w-3xl">
-            <div className="rounded-3xl border border-borderDefault bg-surface px-2.5 py-2 transition focus-within:border-borderHover">
+            <div className="rounded-3xl border border-borderDefault bg-surface/95 px-2.5 py-2 shadow-card backdrop-blur-xl transition focus-within:border-borderHover focus-within:shadow-card-hover">
               {(attachments.length > 0 || documents.length > 0 || uploading) && (
                 <div className="flex flex-wrap gap-2 px-1 pb-2 pt-1">
                   {attachments.map((a, i) => (
@@ -908,6 +922,7 @@ export default function ChatPage() {
                       <img src={a} alt="preview" className="h-16 w-16 rounded-xl border border-borderDefault object-cover" />
                       <button
                         onClick={() => setAttachments((arr) => arr.filter((_, j) => j !== i))}
+                        aria-label="Remove image"
                         className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-bg text-muted hover:text-danger"
                       >
                         <X size={12} />
@@ -921,7 +936,7 @@ export default function ChatPage() {
                         <p className="max-w-[140px] truncate text-primary">{d.name}</p>
                         <p className="text-[10px] text-tertiary">{(d.chars / 1000).toFixed(1)}k chars</p>
                       </div>
-                      <button onClick={() => setDocuments((arr) => arr.filter((_, j) => j !== i))} className="text-muted hover:text-danger">
+                      <button onClick={() => setDocuments((arr) => arr.filter((_, j) => j !== i))} aria-label={`Remove ${d.name}`} className="text-muted hover:text-danger">
                         <X size={13} />
                       </button>
                     </div>
@@ -961,7 +976,8 @@ export default function ChatPage() {
                   />
                   <button
                     onClick={() => fileRef.current?.click()}
-                    title="Attach image or document (PDF, DOCX, TXT…)"
+                    title="Attach image or document"
+                    aria-label="Attach image or document"
                     className="grid h-8 w-8 place-items-center rounded-full text-secondary transition hover:bg-bgHover hover:text-primary"
                   >
                     <Paperclip size={18} />
@@ -969,6 +985,7 @@ export default function ChatPage() {
                   <button
                     onClick={toggleRecord}
                     title="Dictate"
+                    aria-label="Dictate"
                     disabled={transcribing}
                     className={`grid h-8 w-8 place-items-center rounded-full transition ${
                       recording ? "bg-danger text-white" : "text-secondary hover:bg-bgHover hover:text-primary"
@@ -989,6 +1006,7 @@ export default function ChatPage() {
                   <button
                     onClick={send}
                     disabled={!input.trim() && attachments.length === 0 && documents.length === 0}
+                    aria-label="Send message"
                     className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-highlight text-bg transition hover:opacity-90 disabled:opacity-30"
                   >
                     <ArrowUp size={18} strokeWidth={2.5} />
@@ -997,36 +1015,36 @@ export default function ChatPage() {
               </div>
             </div>
             <p className="mt-2 text-center text-[11px] text-tertiary">
-              {activeModel?.name} · {storageMode === "local" ? "Private - stored on your device" : "Encrypted sync"} · NotOpen can make mistakes.
+              {activeModel?.name} · {storageMode === "local" ? "Stored only on your device" : "Encrypted sync"}
             </p>
           </div>
         </div>
       </div>
 
-      {unlockOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setUnlockOpen(false)}>
-          <div className="absolute inset-0 bg-bg/80 backdrop-blur-sm" />
-          <div className="relative w-full max-w-md rounded-card border border-borderDefault bg-surface p-6" onClick={(e) => e.stopPropagation()}>
-            <p className="flex items-center gap-2 text-h2 text-primary">
-              <Lock size={16} /> Unlock encryption
-            </p>
-            <p className="mb-4 mt-1 text-xs text-muted">Enter your passphrase to read and write encrypted synced conversations.</p>
-            <input
-              type="password"
-              className="input"
-              value={unlockPass}
-              autoFocus
-              onChange={(e) => setUnlockPass(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && doUnlock()}
-              placeholder="Passphrase"
-            />
-            <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setUnlockOpen(false)} className="btn-secondary">Cancel</button>
-              <button onClick={doUnlock} className="btn-primary">Unlock</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={unlockOpen}
+        onClose={() => setUnlockOpen(false)}
+        title="Unlock encryption"
+        footer={
+          <>
+            <button onClick={() => setUnlockOpen(false)} className="btn-secondary">Cancel</button>
+            <button onClick={doUnlock} className="btn-primary">Unlock</button>
+          </>
+        }
+      >
+        <p className="text-caption text-muted">Enter your passphrase to read and write encrypted synced conversations.</p>
+        <label className="label mt-4" htmlFor="chat-unlock-pass">Passphrase</label>
+        <input
+          id="chat-unlock-pass"
+          type="password"
+          className="input"
+          value={unlockPass}
+          autoFocus
+          onChange={(e) => setUnlockPass(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && doUnlock()}
+          placeholder="Passphrase"
+        />
+      </Modal>
     </div>
   );
 }

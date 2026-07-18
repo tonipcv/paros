@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { RefreshCw, Mail } from "lucide-react";
+import { RefreshCw, Mail, Users, UserCheck, Ghost, Coins, ClipboardList } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { useRouter } from "next/navigation";
+import { Badge, Button, EmptyState, PageContainer, PageHeader, PageSkeleton, StatCard } from "@/components/ui";
 
 type Stats = {
   users: { total: number; free: number; guests: number; activeSessions: number; todayActive: number };
@@ -71,72 +72,74 @@ export default function AdminDashboard() {
     loadAudit();
   }
 
-  if (!stats) return <p className="p-6 text-sm text-muted">Loading...</p>;
-
-  const metrics = [
-    { label: "Users", value: stats.users.total },
-    { label: "Active today", value: stats.users.todayActive },
-    { label: "Guests", value: stats.users.guests },
-    { label: "Total credits", value: stats.credits.total.toLocaleString("en-US") },
-  ];
-
   const actionLabel = (a: string) => {
     const m: Record<string, string> = { promote_user: "Promoted", set_credits: "Credits", change_plan: "Plan", health_check: "Health check", test_email: "Test email" };
     return m[a] || a;
   };
 
   return (
-    <div className="px-4 py-6 sm:px-6">
-      <div className="mb-6">
-        <h1 className="text-h1 text-grad-light">Admin</h1>
-        <p className="mt-1 text-sm text-muted">
-          {stats.users.total} users · {stats.health.degraded === 0 ? "all systems healthy" : `${stats.health.degraded}/${stats.health.total} degraded`}
-        </p>
-        <div className="mt-3 flex gap-2">
-          <button onClick={runHealthCheck} disabled={hcRunning} className="btn-secondary flex items-center gap-1.5 text-[12px]">
-            <RefreshCw size={14} className={hcRunning ? "animate-spin" : ""} />
-            {hcRunning ? "Checking..." : "Health check"}
-          </button>
-          <button onClick={sendTestEmail} disabled={emailRunning} className="btn-secondary flex items-center gap-1.5 text-[12px]">
-            <Mail size={14} />
-            {emailRunning ? "Sending..." : "Test email"}
-          </button>
-        </div>
-      </div>
+    <PageContainer width="wide">
+      <PageHeader
+        title="Admin"
+        description={
+          stats
+            ? `${stats.users.total} users · ${stats.health.degraded === 0 ? "all systems healthy" : `${stats.health.degraded}/${stats.health.total} degraded`}`
+            : "Workspace overview"
+        }
+        actions={
+          <>
+            <Button variant="secondary" onClick={runHealthCheck} disabled={hcRunning}>
+              <RefreshCw size={14} className={hcRunning ? "animate-spin" : ""} />
+              {hcRunning ? "Checking…" : "Health check"}
+            </Button>
+            <Button variant="secondary" onClick={sendTestEmail} disabled={emailRunning}>
+              <Mail size={14} />
+              {emailRunning ? "Sending…" : "Test email"}
+            </Button>
+          </>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {metrics.map((m) => (
-          <div key={m.label} className="card p-5">
-            <p className="label">{m.label}</p>
-            <p className="mt-1 text-2xl font-semibold text-grad-stat">{m.value}</p>
+      {!stats ? (
+        <PageSkeleton />
+      ) : (
+        <>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard icon={Users} label="Users" value={stats.users.total} />
+            <StatCard icon={UserCheck} label="Active today" value={stats.users.todayActive} />
+            <StatCard icon={Ghost} label="Guests" value={stats.users.guests} />
+            <StatCard icon={Coins} label="Total credits" value={stats.credits.total.toLocaleString("en-US")} />
           </div>
-        ))}
-      </div>
 
-      <div className="mt-8">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-[13px] font-semibold text-primary">Recent actions</h2>
-          <button onClick={loadAudit} className="text-[12px] text-muted hover:text-primary">Refresh</button>
-        </div>
-        {audit.length === 0 ? (
-          <p className="text-xs text-muted">No admin actions recorded yet.</p>
-        ) : (
-          <div className="space-y-1">
-            {audit.slice(0, 15).map((a) => (
-              <div key={a.id} className="card flex items-center justify-between p-3">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-primary truncate">{actionLabel(a.action)}</p>
-                  <p className="text-[11px] text-muted">
-                    {a.adminEmail} {a.targetEmail ? `→ ${a.targetEmail}` : ""}
-                  </p>
-                  {a.details && <p className="text-[10px] text-tertiary truncate">{a.details}</p>}
-                </div>
-                <span className="shrink-0 text-[11px] text-muted">{ago(a.createdAt)}</span>
+          <div className="mt-8">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-h3 text-primary">Recent actions</h2>
+              <button onClick={loadAudit} className="text-caption text-muted transition hover:text-primary">Refresh</button>
+            </div>
+            {audit.length === 0 ? (
+              <EmptyState icon={ClipboardList} title="No admin actions yet" description="Actions taken by admins will appear here." />
+            ) : (
+              <div>
+                {audit.slice(0, 15).map((a) => (
+                  <div key={a.id} className="flex items-center justify-between border-t border-borderDefault py-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-[13px] font-medium text-primary">{actionLabel(a.action)}</p>
+                        <Badge>{a.adminEmail}</Badge>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted">
+                        {a.targetEmail ? `Target: ${a.targetEmail}` : "No target"}
+                        {a.details ? ` · ${a.details}` : ""}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-caption text-muted">{ago(a.createdAt)}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
-    </div>
+        </>
+      )}
+    </PageContainer>
   );
 }

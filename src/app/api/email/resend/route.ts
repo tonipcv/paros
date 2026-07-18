@@ -12,9 +12,9 @@ export async function POST(request: Request) {
     if (user.emailVerified) return json({ ok: true, alreadyVerified: true });
 
     const rl = await rateLimitShared(`verify:resend:${clientIp(request)}`, 5, 3600);
-    if (!rl.ok) return error(`Too many requests — try again in ${rl.retryAfter}s`, 429);
+    if (!rl.ok) return error(`Too many requests. Try again in ${rl.retryAfter}s`, 429);
     const rlUser = await rateLimitShared(`verify:resend:user:${user.id}`, 5, 3600);
-    if (!rlUser.ok) return error(`Too many requests — try again in ${rlUser.retryAfter}s`, 429);
+    if (!rlUser.ok) return error(`Too many requests. Try again in ${rlUser.retryAfter}s`, 429);
 
     await issueEmailVerification(user.id, user.email);
     return json({ ok: true });

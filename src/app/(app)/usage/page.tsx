@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MessageSquare, Image as ImageIcon, Coins, Layers } from "lucide-react";
 import { format } from "date-fns";
+import { PageContainer, PageHeader, StatCard } from "@/components/ui";
 
 type Usage = {
   credits: number;
@@ -25,61 +26,60 @@ export default function UsagePage() {
   }, []);
 
   const stats = [
-    { label: "Credits left", value: data?.credits?.toLocaleString() ?? "—", icon: Coins },
-    { label: "Credits used", value: data?.creditsUsed?.toLocaleString() ?? "—", icon: Layers },
-    { label: "Chat requests", value: data?.chatCount ?? "—", icon: MessageSquare },
-    { label: "Images", value: data?.imageCount ?? "—", icon: ImageIcon },
+    { label: "Credits left", value: data?.credits?.toLocaleString() ?? "0", icon: Coins },
+    { label: "Credits used", value: data?.creditsUsed?.toLocaleString() ?? "0", icon: Layers },
+    { label: "Chat requests", value: data?.chatCount ?? "0", icon: MessageSquare },
+    { label: "Images", value: data?.imageCount ?? "0", icon: ImageIcon },
   ];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-      <div className="mb-6">
-        <h1 className="text-h1 text-grad-light">Usage</h1>
-        <p className="mt-1 text-sm text-muted">Track credits and activity.</p>
-      </div>
+    <PageContainer width="default">
+      <PageHeader title="Usage" description="Track credits and activity." />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => {
-          const Icon = s.icon;
-          return (
-            <div key={s.label} className="stat-card">
-              <div className="mb-3 grid h-9 w-9 place-items-center rounded-lg border border-borderDefault bg-bg text-silver">
-                <Icon size={17} />
-              </div>
-              <p className="text-2xl font-semibold text-grad-stat">{s.value}</p>
-              <p className="mt-0.5 text-xs text-muted">{s.label}</p>
-            </div>
-          );
+          return <StatCard key={s.label} icon={s.icon} label={s.label} value={s.value} />;
         })}
       </div>
 
-      <div className="card p-0">
-        <div className="border-b border-borderDefault px-4 py-3">
-          <p className="text-[13px] font-semibold text-primary">Recent activity</p>
-        </div>
+      <div className="mt-8">
+        <h2 className="text-h3 text-primary mb-4">Recent activity</h2>
         {data?.events?.length ? (
-          <div className="divide-y divide-borderDefault">
-            {data.events.map((e) => (
-              <div key={e.id} className="flex items-center justify-between px-4 py-2.5">
-                <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-bgActive px-2 py-0.5 text-[10px] font-medium uppercase text-secondary">
-                    {e.kind}
-                  </span>
-                  <span className="text-[12px] text-muted">{e.model}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-[12px] text-secondary">-{e.credits} cr</span>
-                  <span className="text-[11px] text-tertiary">
-                    {format(new Date(e.createdAt), "MMM d, HH:mm")}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-t border-borderDefault text-caption text-muted uppercase tracking-wide">
+                <th className="py-3 pr-4 font-medium">Event</th>
+                <th className="py-3 pr-4 font-medium text-right">Credits</th>
+                <th className="py-3 font-medium text-right">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.events.map((e) => (
+                <tr key={e.id} className="border-t border-borderDefault">
+                  <td className="py-2.5 pr-4">
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-full bg-bgActive px-2 py-0.5 text-[10px] font-medium uppercase text-secondary">
+                        {e.kind}
+                      </span>
+                      <span className="text-[12px] text-muted">{e.model}</span>
+                    </div>
+                  </td>
+                  <td className="py-2.5 pr-4 text-right">
+                    <span className="text-[12px] text-secondary">-{e.credits} cr</span>
+                  </td>
+                  <td className="py-2.5 text-right">
+                    <span className="text-[11px] text-tertiary">
+                      {format(new Date(e.createdAt), "MMM d, HH:mm")}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
-          <p className="px-4 py-8 text-center text-sm text-muted">No activity yet</p>
+          <p className="border-t border-borderDefault py-10 text-center text-caption text-tertiary">No activity yet</p>
         )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

@@ -17,6 +17,7 @@ import {
   Shield,
   ChevronDown,
   LayoutDashboard,
+  Sparkles,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { initials } from "@/lib/ui-helpers";
@@ -62,8 +63,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen items-center justify-center bg-bgPage">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-highlight border-t-transparent" />
       </div>
-  );
-}
+    );
+  }
 
 
   function isActive(to: string) {
@@ -80,7 +81,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" onClick={() => setSidebarOpen(false)}>
           <div className="absolute inset-0 bg-bg/80 backdrop-blur-sm" />
-          <div className="absolute inset-y-0 left-0 w-[260px] border-r border-borderDefault bg-sidebar" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute inset-y-0 left-0 w-[264px] border-r border-borderDefault bg-sidebar/95 shadow-2xl backdrop-blur-xl" onClick={(e) => e.stopPropagation()}>
             <Sidebar
               isActive={isActive}
               user={user}
@@ -92,12 +93,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <aside className="hidden w-[272px] shrink-0 border-r border-borderDefault bg-sidebar lg:flex lg:flex-col">
+      <aside className="hidden w-[264px] shrink-0 border-r border-borderDefault bg-sidebar/95 lg:flex lg:flex-col">
         <Sidebar isActive={isActive} user={user} workspace={workspace} onLogout={handleLogout} />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="flex h-11 shrink-0 items-center justify-between border-b border-borderDefault px-3 lg:hidden">
+        <div className="flex h-12 shrink-0 items-center justify-between border-b border-borderDefault bg-bgPage/80 px-3 backdrop-blur-xl lg:hidden">
           <button
             aria-label="Open navigation"
             className="grid h-8 w-8 place-items-center rounded-btn text-secondary hover:bg-bgHover hover:text-primary"
@@ -105,7 +106,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <Menu size={18} />
           </button>
-          <span className="text-sm font-semibold text-grad-light">{appName}</span>
+          <span className="font-display text-[17px] font-medium tracking-[0.01em] text-primary">{appName}</span>
           <div className="w-8" />
         </div>
         <main className="flex-1 overflow-auto bg-bgPage">
@@ -139,25 +140,25 @@ function Sidebar({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 shrink-0 items-center gap-3 border-b border-borderDefault px-4">
+      <div className="flex h-[62px] shrink-0 items-center gap-2.5 px-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt={appName} className="h-8 w-8 rounded-btn" />
-        <div className="min-w-0">
-          <p className="text-[15px] font-semibold leading-tight text-grad-light">{appName}</p>
-          <p className="mt-0.5 text-[11px] font-medium text-muted">Private AI workspace</p>
-        </div>
+        <img src="/logo.png" alt={appName} className="h-7 w-7 rounded-lg" />
+        <span className="font-display text-[20px] font-medium leading-none tracking-[0.01em] text-primary">{appName}</span>
       </div>
 
-      <div className="border-b border-borderDefault px-4 py-3">
+      <div className="mx-3 rounded-xl border border-borderDefault bg-bgCard px-3 py-3 shadow-card">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] uppercase tracking-wide text-tertiary">Credits</span>
-          <span className="text-[11px] font-medium text-silver">{workspace?.plan || "FREE"}</span>
+          <span className="text-[11px] font-medium text-tertiary">Workspace credits</span>
+          <span className="rounded-full bg-bgActive px-2 py-0.5 text-[10px] font-medium text-muted">{workspace?.plan || "FREE"}</span>
         </div>
-        <p className="mt-1 text-lg font-semibold text-grad-stat">{workspace?.credits?.toLocaleString() ?? "—"}</p>
+        <div className="mt-2 flex items-end justify-between">
+          <span className="text-[22px] font-semibold leading-none text-primary">{workspace?.credits?.toLocaleString() ?? "0"}</span>
+          <Sparkles size={15} className="text-tertiary" />
+        </div>
       </div>
 
-      <nav className="flex-1 overflow-auto px-3 py-4">
-        <div className="space-y-1">
+      <nav className="flex-1 overflow-auto px-3 py-5">
+        <div className="space-y-0.5">
           {nav.map((item) => {
             const active = isActive(item.to);
             const Icon = item.icon;
@@ -166,13 +167,13 @@ function Sidebar({
                 key={item.to}
                 href={item.to}
                 onClick={onClose}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] font-medium transition ${
                   active
-                    ? "bg-bgActive text-primary"
+                    ? "bg-bgActive text-primary shadow-[inset_0_0_0_1px_rgb(var(--border))]"
                     : "text-sidebarText hover:bg-sidebarHover hover:text-primary"
                 }`}
               >
-                <Icon size={18} strokeWidth={2} className={active ? "text-primary" : "text-tertiary"} />
+                <Icon size={17} strokeWidth={2} className={active ? "text-primary" : "text-tertiary"} />
                 <span>{item.label}</span>
               </Link>
               );
@@ -181,11 +182,11 @@ function Sidebar({
               <>
                 <button
                   onClick={() => setAdminExpanded((v) => !v)}
-                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] font-medium transition ${
                     adminExpanded ? "text-primary" : "text-sidebarText hover:bg-sidebarHover hover:text-primary"
                   }`}
                 >
-                  <Shield size={18} strokeWidth={2} className={adminExpanded ? "text-rose-400" : "text-tertiary"} />
+                  <Shield size={18} strokeWidth={2} className={adminExpanded ? "text-primary" : "text-tertiary"} />
                   <span className="flex-1 text-left">Admin</span>
                   <ChevronDown size={14} className={`text-muted transition-transform ${adminExpanded ? "rotate-180" : ""}`} />
                 </button>
@@ -199,7 +200,7 @@ function Sidebar({
                           key={item.to}
                           href={item.to}
                           onClick={onClose}
-                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition ${
                             active ? "bg-bgActive text-primary" : "text-sidebarText hover:bg-sidebarHover hover:text-primary"
                           }`}
                         >
@@ -218,9 +219,9 @@ function Sidebar({
       <div className="relative border-t border-borderDefault p-3">
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="flex w-full items-center gap-3 rounded-xl border border-borderDefault bg-surface p-2 text-left transition hover:border-borderHover"
+          className="flex w-full items-center gap-3 rounded-xl border border-transparent bg-transparent p-2 text-left transition hover:border-borderDefault hover:bg-bgCard"
         >
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-highlight text-[12px] font-semibold text-bg">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-bgActive text-[12px] font-semibold text-primary">
             {initials(user.name || user.email)}
           </div>
           <div className="min-w-0 flex-1">

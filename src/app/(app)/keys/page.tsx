@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { KeyRound, Plus, Trash2, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
+import { EmptyState, PageContainer, PageHeader } from "@/components/ui";
 
 type Key = { id: string; name: string; keyPrefix: string; lastUsedAt: string | null; createdAt: string };
 
@@ -56,77 +57,88 @@ export default function KeysPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-h1 text-grad-light">API Keys</h1>
-          <p className="mt-1 text-sm text-muted">OpenAI-compatible. Use with any SDK.</p>
-        </div>
-        <a href="/docs" target="_blank" className="btn-secondary">API docs</a>
-      </div>
+    <PageContainer width="default">
+      <PageHeader
+        title="API Keys"
+        description="OpenAI compatible. Use with any SDK."
+        actions={<a href="/docs" target="_blank" className="btn-secondary">API docs</a>}
+      />
 
       {newKey && (
-        <div className="card mb-5 border-highlight/30 p-4">
-          <p className="mb-2 text-[13px] font-medium text-primary">Your new API key (copy it now - shown once)</p>
-          <div className="flex items-center gap-2">
+        <div className="border-t border-borderDefault py-8 first:border-t-0 first:pt-0">
+          <p className="text-body font-medium text-primary">Your new API key. Copy it now — it won&apos;t be shown again.</p>
+          <div className="mt-3 flex items-center gap-2">
             <code className="flex-1 truncate rounded-btn border border-borderDefault bg-bg px-3 py-2 text-[12px] text-silver">
               {newKey}
             </code>
-            <button onClick={copyKey} className="btn-secondary h-9 px-3">
+            <button onClick={copyKey} className="btn-secondary">
               {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>
           </div>
         </div>
       )}
 
-      <div className="card mb-6 p-4">
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <label className="label">Key name</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Production key"
-              className="input"
-            />
-          </div>
-          <button onClick={create} disabled={creating} className="btn-primary">
-            <Plus size={15} /> Create
-          </button>
+      {keys.length === 0 ? (
+        <div className="border-t border-borderDefault first:border-t-0 first:pt-0">
+          <EmptyState icon={KeyRound} title="No API keys yet" description="Create a key when you are ready to connect an external client." />
         </div>
-      </div>
-
-      <div className="card divide-y divide-borderDefault p-0">
-        {keys.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <KeyRound size={22} className="mb-2 text-tertiary" />
-            <p className="text-sm text-muted">No API keys yet</p>
-          </div>
-        ) : (
-          keys.map((k) => (
-            <div key={k.id} className="flex items-center justify-between px-4 py-3">
-              <div className="min-w-0">
-                <p className="text-[13px] font-medium text-primary">{k.name}</p>
-                <p className="text-[11px] text-tertiary">{k.keyPrefix}••••••</p>
+      ) : (
+        <div className="border-t border-borderDefault first:border-t-0 first:pt-0">
+          <div className="divide-y divide-borderDefault">
+            {keys.map((k) => (
+              <div key={k.id} className="flex items-center justify-between py-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-primary">{k.name}</p>
+                  <p className="text-[11px] text-tertiary">{k.keyPrefix}••••••</p>
+                </div>
+                <button onClick={() => remove(k.id)} aria-label={`Delete key ${k.name}`} className="btn-ghost text-tertiary hover:text-danger">
+                  <Trash2 size={15} />
+                </button>
               </div>
-              <button onClick={() => remove(k.id)} className="btn-ghost text-tertiary hover:text-danger">
-                <Trash2 size={15} />
-              </button>
-            </div>
-          ))
-        )}
-      </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-      <div className="card mt-6 p-5">
-        <p className="mb-2 text-[13px] font-medium text-primary">Example usage</p>
-        <pre className="overflow-auto rounded-btn border border-borderDefault bg-bg p-3 text-[12px] text-silver">
+      <section className="grid gap-6 border-t border-borderDefault py-8 first:border-t-0 first:pt-0 sm:grid-cols-[260px_1fr]">
+        <div>
+          <h2 className="text-h3 text-primary">Create a key</h2>
+          <p className="mt-1 text-caption leading-5 text-muted">Keys authenticate requests to the Venice API.</p>
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <label className="label" htmlFor="key-name">Key name</label>
+              <input
+                id="key-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Production key"
+                className="input"
+              />
+            </div>
+            <button onClick={create} disabled={creating} className="btn-primary">
+              <Plus size={15} /> Create
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 border-t border-borderDefault py-8 first:border-t-0 first:pt-0 sm:grid-cols-[260px_1fr]">
+        <div>
+          <h2 className="text-h3 text-primary">Example usage</h2>
+          <p className="mt-1 text-caption leading-5 text-muted">OpenAI-compatible &mdash; use the Venice API with any SDK.</p>
+        </div>
+        <div className="min-w-0">
+          <pre className="overflow-auto rounded-btn border border-borderDefault bg-bg p-3 text-[12px] text-silver">
 {`curl ${appUrl}/api/v1/chat/completions \\
   -H "Authorization: Bearer nb-..." \\
   -H "Content-Type: application/json" \\
   -d '{"model":"meta-llama/llama-3.3-70b-instruct",
        "messages":[{"role":"user","content":"Hello"}]}'`}
-        </pre>
-      </div>
-    </div>
+          </pre>
+        </div>
+      </section>
+    </PageContainer>
   );
 }
