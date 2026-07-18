@@ -155,6 +155,15 @@ function Sidebar({
           <span className="text-[22px] font-semibold leading-none text-primary">{workspace?.credits?.toLocaleString() ?? "0"}</span>
           <Sparkles size={15} className="text-tertiary" />
         </div>
+        {workspace?.plan !== "MAX" && (
+          <Link
+            href="/billing"
+            onClick={onClose}
+            className="mt-3 flex h-8 items-center justify-center rounded-lg border border-borderDefault text-[12px] font-medium text-secondary transition hover:border-borderHover hover:text-primary"
+          >
+            Upgrade
+          </Link>
+        )}
       </div>
 
       <nav className="flex-1 overflow-auto px-3 py-5">
