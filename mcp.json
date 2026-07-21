@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "notopen": {
+      "command": "npx",
+      "args": ["tsx", "src/mcp/server.ts"],
+      "env": {
+        "NOTOPEN_API_KEY": "nb-YOUR_API_KEY",
+        "NOTOPEN_BASE_URL": "http://localhost:3012"
+      }
+    }
+  }
+}

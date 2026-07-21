@@ -24,7 +24,9 @@ npm-debug.log*
 .data
 .wrangler
 .vercel
-.env*
+
+# generated media
+public/videos/
 
 # local test artifacts
 .stripe-webhook-local-cleanup.json

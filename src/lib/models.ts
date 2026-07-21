@@ -6,7 +6,9 @@ export type ChatModel = {
   context: string;
   uncensored?: boolean;
   vision?: boolean;
+  reasoning?: boolean;
   credits: number;
+  maxOutput?: number;
 };
 
 export const CHAT_MODELS: ChatModel[] = [
@@ -27,13 +29,31 @@ export const CHAT_MODELS: ChatModel[] = [
     credits: 1,
   },
   {
-    id: "anthropic/claude-3.5-sonnet",
-    name: "Claude 3.5 Sonnet",
+    id: "deepseek/deepseek-r1",
+    name: "DeepSeek R1",
+    provider: "DeepSeek",
+    description: "Chain-of-thought reasoning. Shows thinking.",
+    context: "128K",
+    reasoning: true,
+    credits: 2,
+  },
+  {
+    id: "anthropic/claude-sonnet-4",
+    name: "Claude Sonnet 4",
     provider: "Anthropic",
     description: "Best-in-class writing and analysis.",
-    context: "200K",
+    context: "1M",
     vision: true,
     credits: 4,
+  },
+  {
+    id: "openai/gpt-4o",
+    name: "GPT-4o",
+    provider: "OpenAI",
+    description: "Flagship multimodal model.",
+    context: "128K",
+    vision: true,
+    credits: 5,
   },
   {
     id: "openai/gpt-4o-mini",
@@ -45,6 +65,25 @@ export const CHAT_MODELS: ChatModel[] = [
     credits: 2,
   },
   {
+    id: "google/gemini-2.5-flash",
+    name: "Gemini 2.5 Flash",
+    provider: "Google",
+    description: "Fast multimodal model, 1M context.",
+    context: "1M",
+    vision: true,
+    credits: 2,
+  },
+  {
+    id: "google/gemini-2.5-pro",
+    name: "Gemini 2.5 Pro",
+    provider: "Google",
+    description: "Advanced reasoning, 1M context.",
+    context: "1M",
+    vision: true,
+    reasoning: true,
+    credits: 5,
+  },
+  {
     id: "qwen/qwen-2.5-72b-instruct",
     name: "Qwen 2.5 72B",
     provider: "Alibaba",
@@ -53,54 +92,134 @@ export const CHAT_MODELS: ChatModel[] = [
     credits: 2,
   },
   {
-    id: "google/gemini-2.0-flash-001",
-    name: "Gemini 2.0 Flash",
-    provider: "Google",
-    description: "Fast multimodal model.",
-    context: "1M",
+    id: "qwen/qwen3-235b-a22b",
+    name: "Qwen 3 235B",
+    provider: "Alibaba",
+    description: "MoE reasoning with thinking traces.",
+    context: "128K",
+    reasoning: true,
+    credits: 3,
+  },
+  {
+    id: "meta-llama/llama-4-maverick",
+    name: "Llama 4 Maverick",
+    provider: "Meta",
+    description: "Latest open-source with native multimodality.",
+    context: "128K",
+    vision: true,
+    credits: 3,
+  },
+  {
+    id: "anthropic/claude-haiku-4.5",
+    name: "Claude Haiku 4.5",
+    provider: "Anthropic",
+    description: "Fast, cost-effective reasoning.",
+    context: "200K",
     vision: true,
     credits: 2,
   },
   {
-    id: "cognitivecomputations/dolphin-mixtral-8x22b",
-    name: "Dolphin Mixtral 8x22B",
-    provider: "Cognitive",
-    description: "Uncensored, unfiltered responses.",
-    context: "16K",
+    id: "microsoft/wizardlm-2-8x22b",
+    name: "WizardLM 2 8x22B",
+    provider: "Microsoft",
+    description: "Powerful uncensored MoE model.",
+    context: "64K",
     uncensored: true,
     credits: 3,
   },
   {
-    id: "cognitivecomputations/dolphin3.0-mistral-24b:free",
-    name: "Dolphin 3.0 Mistral 24B",
-    provider: "Cognitive",
-    description: "Steerable, uncensored assistant.",
-    context: "32K",
-    uncensored: true,
-    credits: 2,
-  },
-  {
-    id: "neversleep/llama-3.1-lumimaid-70b",
-    name: "Lumimaid 70B",
-    provider: "NeverSleep",
-    description: "Uncensored roleplay & creative writing.",
-    context: "16K",
-    uncensored: true,
-    credits: 4,
-  },
-  {
-    id: "sao10k/l3.1-euryale-70b",
-    name: "Euryale 70B",
+    id: "sao10k/l3.3-euryale-70b",
+    name: "Euryale 70B v3.3",
     provider: "Sao10K",
     description: "Uncensored creative & narrative model.",
-    context: "16K",
+    context: "131K",
     uncensored: true,
     credits: 4,
+  },
+  {
+    id: "nousresearch/hermes-4-70b",
+    name: "Hermes 4 70B",
+    provider: "Nous Research",
+    description: "Latest uncensored, steerable model.",
+    context: "131K",
+    uncensored: true,
+    credits: 3,
+  },
+  {
+    id: "nousresearch/hermes-3-llama-3.1-405b",
+    name: "Hermes 3 405B",
+    provider: "Nous Research",
+    description: "Uncensored, largest open model.",
+    context: "131K",
+    uncensored: true,
+    credits: 6,
+  },
+  {
+    id: "nousresearch/hermes-3-llama-3.1-70b",
+    name: "Hermes 3 70B",
+    provider: "Nous Research",
+    description: "Uncensored, smaller/faster option.",
+    context: "131K",
+    uncensored: true,
+    credits: 2,
   },
 ];
 
 export function findChatModel(id: string) {
-  return CHAT_MODELS.find((m) => m.id === id) || CHAT_MODELS[0];
+  const found = CHAT_MODELS.find((m) => m.id === id);
+  if (found) return found;
+  if (!CHAT_MODELS.length) throw new Error("No chat models configured");
+  return CHAT_MODELS[0];
+}
+
+// ── Per-plan resource limits (prevent cost overruns) ──
+
+export type PlanLimits = {
+  maxInputChars: number;       // hard character limit before request
+  maxOutputTokens: number;     // max_tokens sent to upstream
+  maxChatsPerDay: number;      // daily request cap
+  maxImagesPerDay: number;     // daily image cap
+  dailySpendLimitUsd: number;  // hard daily USD ceiling
+  maxConcurrency: number;      // simultaneous in-flight requests
+};
+
+const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
+  FREE: {
+    maxInputChars: 16000,
+    maxOutputTokens: 2000,
+    maxChatsPerDay: 30,
+    maxImagesPerDay: 3,
+    dailySpendLimitUsd: 0.10,
+    maxConcurrency: 1,
+  },
+  STARTER: {
+    maxInputChars: 64000,
+    maxOutputTokens: 4000,
+    maxChatsPerDay: 200,
+    maxImagesPerDay: 15,
+    dailySpendLimitUsd: 1.00,
+    maxConcurrency: 2,
+  },
+  PRO: {
+    maxInputChars: 128000,
+    maxOutputTokens: 8000,
+    maxChatsPerDay: 400,
+    maxImagesPerDay: 30,
+    dailySpendLimitUsd: 5.00,
+    maxConcurrency: 4,
+  },
+  MAX: {
+    maxInputChars: 256000,
+    maxOutputTokens: 16000,
+    maxChatsPerDay: 1000,
+    maxImagesPerDay: 60,
+    dailySpendLimitUsd: 20.00,
+    maxConcurrency: 8,
+  },
+};
+
+export function getPlanLimits(plan: string): PlanLimits {
+  return PLAN_LIMITS[plan as PlanId] || PLAN_LIMITS.FREE;
 }
 
 export type ImageStyle = { id: string; name: string; prompt: string };
@@ -132,6 +251,8 @@ export const IMAGE_MODELS = [
   { id: "google/gemini-2.5-flash-image", name: "Gemini 2.5 Flash Image", credits: 5 },
   { id: "google/gemini-3-pro-image", name: "Gemini 3 Pro Image", credits: 10 },
   { id: "openai/gpt-5-image-mini", name: "GPT Image Mini", credits: 8 },
+  { id: "black-forest-labs/flux-1.1-pro", name: "Flux 1.1 Pro", credits: 6, uncensored: true },
+  { id: "stabilityai/stable-diffusion-3.5-large", name: "SD 3.5 Large", credits: 4, uncensored: true },
 ];
 
 export const YEARLY_DISCOUNT = 0.9;

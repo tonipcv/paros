@@ -24,6 +24,9 @@ import {
   EyeOff,
   ShieldClose,
   ShieldAlert,
+  Flame,
+  Search,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
@@ -78,6 +81,9 @@ export default function ChatPage() {
   const [voice, setVoice] = useState("alloy");
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [rawMode, setRawMode] = useState(true);
+  const [matureFilter, setMatureFilter] = useState(false);
+  const [webSearch, setWebSearch] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -92,6 +98,11 @@ export default function ChatPage() {
     const mode: StorageMode = saved === "cloud" ? "cloud" : "local";
     setStorageMode(mode);
     refreshConvos(mode);
+    try {
+      setRawMode(localStorage.getItem("htps_raw") !== "off");
+      setWebSearch(localStorage.getItem("htps_search") === "on");
+      setMatureFilter(localStorage.getItem("htps_mature") !== "on");
+    } catch {}
     fetch("/api/attestation")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -413,8 +424,10 @@ export default function ChatPage() {
           ephemeral: true,
           privacyMode,
           temperature,
-          systemPrompt,
+          systemPrompt: rawMode ? "" : systemPrompt,
           history: priorHistory,
+          webSearch,
+          rawMode,
         }),
         signal: controller.signal,
       });
@@ -458,7 +471,7 @@ export default function ChatPage() {
         id: newLocalId(),
         title: content24(userMsg.content) || "New chat",
         model,
-        systemPrompt,
+        systemPrompt: rawMode ? "" : systemPrompt,
         temperature,
         characterId: characterId || undefined,
         messages: seededGreeting,
@@ -468,7 +481,7 @@ export default function ChatPage() {
       if (!existing) setActiveId(convo.id);
       convo.messages.push(userMsg as unknown as LocalConversation["messages"][number], assistantMsg as unknown as LocalConversation["messages"][number]);
       convo.model = model;
-      convo.systemPrompt = systemPrompt;
+      convo.systemPrompt = rawMode ? "" : systemPrompt;
       convo.temperature = temperature;
       convo.updatedAt = now;
       await putLocalConversation(convo);
@@ -687,9 +700,10 @@ export default function ChatPage() {
                       <span className="text-[10px] text-tertiary">{m.credits} cr</span>
                     </div>
                     <span className="text-[11px] text-muted">{m.provider} · {m.description}</span>
-                    {(m.vision || m.uncensored) && (
+                    {(m.vision || m.uncensored || m.reasoning) && (
                       <span className="mt-1 flex gap-1.5 text-[10px] text-tertiary">
                         {m.vision && <span className="rounded bg-bgActive px-1.5 py-0.5">Vision</span>}
+                        {m.reasoning && <span className="rounded bg-bgActive px-1.5 py-0.5">Reasoning</span>}
                         {m.uncensored && <span className="rounded bg-bgActive px-1.5 py-0.5">Uncensored</span>}
                       </span>
                     )}
@@ -700,6 +714,40 @@ export default function ChatPage() {
           </Dropdown>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const next = !rawMode;
+                setRawMode(next);
+                try { localStorage.setItem("htps_raw", next ? "on" : "off"); } catch {}
+              }}
+              title={rawMode ? "Raw mode: no default system prompt. Model won't refuse." : "Raw mode off"}
+              aria-label={rawMode ? "Raw uncensored mode on" : "Raw uncensored mode off"}
+              aria-pressed={rawMode}
+              className={`grid h-8 w-8 place-items-center rounded-btn border transition ${
+                rawMode
+                  ? "border-orange-500/50 bg-orange-500/10 text-orange-500"
+                  : "border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
+              }`}
+            >
+              <Flame size={14} />
+            </button>
+            <button
+              onClick={() => {
+                const next = !webSearch;
+                setWebSearch(next);
+                try { localStorage.setItem("htps_search", next ? "on" : "off"); } catch {}
+              }}
+              title={webSearch ? "Web search enabled" : "Web search off"}
+              aria-label={webSearch ? "Web search enabled" : "Web search off"}
+              aria-pressed={webSearch}
+              className={`grid h-8 w-8 place-items-center rounded-btn border transition ${
+                webSearch
+                  ? "border-highlight bg-highlight/10 text-highlight"
+                  : "border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
+              }`}
+            >
+              <Search size={14} />
+            </button>
             <button
               onClick={() => setTemporary((v) => !v)}
               title="Temporary chat, not saved anywhere"
@@ -740,10 +788,10 @@ export default function ChatPage() {
                 <>
                   {(["anonymous", "private", "tee", "e2ee"] as PrivacyMode[]).map((m) => {
                     const labels: Record<PrivacyMode, { icon: any; desc: string }> = {
-                      anonymous: { icon: EyeOff, desc: "Frontier models. Identity hidden. Provider may retain." },
-                      private: { icon: ShieldCheck, desc: "Zero-retention by contract. Default." },
-                      tee: { icon: Lock, desc: "Hardware-isolated GPU enclave (Phala), attested." },
-                      e2ee: { icon: ShieldClose, desc: "Encrypted on your device to the attested enclave. Our server only relays ciphertext." },
+                      anonymous: { icon: EyeOff, desc: "Identity not forwarded to the provider. Provider may retain data under its own policies." },
+                      private: { icon: ShieldCheck, desc: "Routed only through Zero Data Retention endpoints. Server processes request in plaintext." },
+                      tee: { icon: Lock, desc: "Hardware-isolated processing (Phala TDX). Server receives request before it enters enclave." },
+                      e2ee: { icon: ShieldClose, desc: "Encrypted on-device to attested enclave. Server relays ciphertext. Requires trusted browser." },
                     };
                     const info = labels[m];
                     const Icon = info.icon;
@@ -818,11 +866,12 @@ export default function ChatPage() {
                   <label className="label mt-3" htmlFor="chat-system-prompt">System prompt</label>
                   <textarea
                     id="chat-system-prompt"
-                    value={systemPrompt}
-                    onChange={(e) => setSystemPrompt(e.target.value)}
+                    value={rawMode ? "" : systemPrompt}
+                    onChange={(e) => { if (!rawMode) setSystemPrompt(e.target.value); }}
                     rows={3}
-                    placeholder="You are a helpful assistant…"
-                    className="input min-h-[70px] resize-y py-2"
+                    placeholder={rawMode ? "Raw mode active — no system prompt. Model has full freedom." : "Custom system prompt (optional)…"}
+                    disabled={rawMode}
+                    className="input min-h-[70px] resize-y py-2 data-[disabled]:opacity-50"
                   />
                   <label className="label mt-3" htmlFor="chat-voice">Voice (TTS)</label>
                   <select id="chat-voice" className="input" value={voice} onChange={(e) => setVoice(e.target.value)}>
@@ -830,6 +879,29 @@ export default function ChatPage() {
                       <option key={v.id} value={v.id}>{v.name}</option>
                     ))}
                   </select>
+                  <label className="label mt-3" htmlFor="chat-mature">Content filtering</label>
+                  <div className="flex items-center justify-between">
+                    <p className="text-[12px] text-muted">
+                      {matureFilter ? "Filter enabled — some content may be restricted" : "No restrictions — full creative freedom"}
+                    </p>
+                    <button
+                      onClick={() => {
+                        const next = !matureFilter;
+                        setMatureFilter(next);
+                        try { localStorage.setItem("htps_mature", next ? "on" : "off"); } catch {}
+                      }}
+                      title={matureFilter ? "Disable content filter" : "Enable content filter"}
+                      aria-label={matureFilter ? "Disable content filter" : "Enable content filter"}
+                      aria-pressed={matureFilter}
+                      className={`grid h-7 w-7 place-items-center rounded-btn border transition ${
+                        matureFilter
+                          ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-500"
+                          : "border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
+                      }`}
+                    >
+                      <AlertTriangle size={13} />
+                    </button>
+                  </div>
                   <button onClick={close} className="btn-primary mt-4 w-full">Apply</button>
                 </div>
               )}

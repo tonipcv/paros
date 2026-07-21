@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Lock, LockOpen } from "lucide-react";
+import { Lock, LockOpen, Flame } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button, Input, Modal, PageContainer, PageHeader, Switch } from "@/components/ui";
 
@@ -43,6 +43,7 @@ export default function SettingsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [rawDefault, setRawDefault] = useState(true);
 
   async function submitEncryption() {
     setEncBusy(true);
@@ -76,6 +77,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (user) setName(user.name || "");
     if (workspace) setWorkspaceName(workspace.name || "");
+    try { setRawDefault(localStorage.getItem("htps_raw") !== "off"); } catch {}
   }, [user, workspace]);
 
   async function saveProfile() {
@@ -153,6 +155,36 @@ export default function SettingsPage() {
         <div className="flex items-center justify-between">
           <p className="text-body text-secondary">Zero-retention for new chats</p>
           <Switch checked={Boolean(workspace?.privacyMode)} onChange={togglePrivacy} label="Privacy mode" />
+        </div>
+      </Section>
+
+      <Section title="Content defaults" description="How new conversations behave by default. You can override per-conversation in the chat header.">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-body text-secondary">Raw mode as default</p>
+            <p className="text-caption text-muted">
+              {rawDefault
+                ? "New chats start with no system prompt. Models have full creative freedom."
+                : "New chats use the default helpful assistant system prompt."}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              const next = !rawDefault;
+              setRawDefault(next);
+              try { localStorage.setItem("htps_raw", next ? "on" : "off"); } catch {}
+              toast.success(next ? "Raw mode is now on by default" : "Default system prompt restored");
+            }}
+            title={rawDefault ? "Disable raw mode" : "Enable raw mode"}
+            aria-label={rawDefault ? "Disable raw mode" : "Enable raw mode"}
+            className={`grid h-8 w-8 shrink-0 place-items-center rounded-btn border transition ${
+              rawDefault
+                ? "border-orange-500/50 bg-orange-500/10 text-orange-500"
+                : "border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
+            }`}
+          >
+            <Flame size={14} />
+          </button>
         </div>
       </Section>
 

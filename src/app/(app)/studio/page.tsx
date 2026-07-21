@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Wand2, Loader2, Upload, X } from "lucide-react";
+import { Wand2, Loader2, Upload, X, Flame, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
-import { IMAGE_STYLES } from "@/lib/models";
+import { IMAGE_STYLES, IMAGE_MODELS } from "@/lib/models";
 import { EmptyState, PageContainer, PageHeader } from "@/components/ui";
 
 type Img = { id: string; prompt: string; url: string; style: string; createdAt: string };
@@ -16,11 +16,16 @@ export default function StudioPage() {
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<Img[]>([]);
   const [inputImage, setInputImage] = useState<string | null>(null);
+  const [modelId, setModelId] = useState(IMAGE_MODELS[0]?.id || "");
+  const [matureFilter, setMatureFilter] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     refresh();
+    try { setMatureFilter(localStorage.getItem("htps_mature") !== "on"); } catch {}
   }, []);
+
+  const selectedModel = IMAGE_MODELS.find((m) => m.id === modelId) || IMAGE_MODELS[0];
 
   async function refresh() {
     const res = await fetch("/api/images");
@@ -45,19 +50,22 @@ export default function StudioPage() {
       const res = await fetch("/api/images", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, style, inputImage: inputImage || undefined }),
+        body: JSON.stringify({ prompt, style, model: modelId, inputImage: inputImage || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
       setImages((imgs) => [data.image, ...imgs]);
       load();
-      toast.success(inputImage ? "Image edited" : "Image generated");
+      const costLabel = inputImage ? `${data.image?.model || selectedModel.name} edit` : data.image?.model || selectedModel.name;
+      toast.success(`${inputImage ? "Image edited" : "Image generated"} — ${costLabel}`);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setLoading(false);
     }
   }
+
+  const cost = inputImage ? (selectedModel?.credits || 5) + 1 : (selectedModel?.credits || 5);
 
   return (
     <PageContainer width="wide">
@@ -115,13 +123,61 @@ export default function StudioPage() {
             ))}
           </div>
 
+          <label className="label mt-4">Model</label>
+          <div className="flex flex-wrap gap-1.5">
+            {IMAGE_MODELS.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setModelId(m.id)}
+                className={`rounded-btn border px-2.5 py-1 text-[12px] font-medium transition ${
+                  modelId === m.id
+                    ? "border-highlight bg-highlight text-bg"
+                    : "border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
+                }`}
+              >
+                <span className="flex items-center gap-1">
+                  {m.name}
+                  <span className="text-[10px] opacity-70">{m.credits}cr</span>
+                  {"uncensored" in m && (m as any).uncensored && (
+                    <Flame size={11} className="text-orange-400" />
+                  )}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between rounded-lg border border-borderDefault bg-surface px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-[12px] font-medium text-primary">Mature filter</p>
+              <p className="text-[11px] text-muted">
+                {matureFilter ? "Filter active — safe mode" : "Disabled — full creative freedom"}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                const next = !matureFilter;
+                setMatureFilter(next);
+                try { localStorage.setItem("htps_mature", next ? "on" : "off"); } catch {}
+              }}
+              title={matureFilter ? "Disable mature filter" : "Enable mature filter"}
+              aria-label={matureFilter ? "Disable mature filter" : "Enable mature filter"}
+              className={`grid h-7 w-7 shrink-0 place-items-center rounded-btn border transition ${
+                matureFilter
+                  ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-500"
+                  : "border-borderDefault text-secondary hover:border-borderHover hover:text-primary"
+              }`}
+            >
+              <AlertTriangle size={13} />
+            </button>
+          </div>
+
           <button
             onClick={generate}
             disabled={loading || !prompt.trim()}
             className="btn-primary mt-5 h-11 w-full"
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
-            {loading ? "Generating…" : inputImage ? "Edit image (6 credits)" : "Generate (5 credits)"}
+            {loading ? "Generating…" : inputImage ? `Edit image (${cost} credits)` : `Generate (${cost} credits)`}
           </button>
         </div>
 

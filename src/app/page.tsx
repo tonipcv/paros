@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Flame, ShieldClose, Sparkles } from "lucide-react";
 import { LandingChatPrompt } from "@/components/landing-chat-prompt";
 import { LandingPricing } from "@/components/landing-pricing";
 import { Reveal } from "@/components/reveal";
@@ -22,6 +22,12 @@ const models = [
 ];
 const privacyTiers = ["Anonymized", "Private", "TEE", "End-to-end encrypted"];
 
+const uncensoredFeatures = [
+  { icon: Flame, title: "No refusals", desc: "Models answer what you ask. No paternalistic 'I can't help with that' responses blocking your work." },
+  { icon: ShieldClose, title: "Unfiltered creativity", desc: "Write, roleplay, and brainstorm without a corporate policy second-guessing your intent." },
+  { icon: Sparkles, title: "Self-hosted freedom", desc: "Uncensored models run on our infrastructure. No third-party filters between you and the model." },
+];
+
 export default function LandingPage() {
   return (
     <div className="landing-theme min-h-screen">
@@ -36,7 +42,7 @@ export default function LandingPage() {
                 Ask anything.
               </h1>
               <p className="mx-auto mt-6 max-w-[520px] text-[17px] leading-8 text-[var(--landing-muted)]">
-                Every frontier model, one private workspace.
+                Every frontier model, one private workspace. No filters, no refusals, no BS.
               </p>
             </Reveal>
 
@@ -86,6 +92,35 @@ export default function LandingPage() {
                 How it works <ArrowRight size={14} />
               </Link>
             </Reveal>
+          </div>
+        </section>
+
+        <section id="uncensored" className="border-t border-[var(--landing-chip)]">
+          <div className="mx-auto max-w-[1080px] px-5 py-24">
+            <Reveal className="mx-auto max-w-[640px] text-center">
+              <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-3 py-1 text-[11px] font-medium text-orange-500">
+                <Flame size={12} /> Uncensored
+              </div>
+              <h2 className="font-display text-[30px] font-medium leading-[1.06] text-[var(--landing-text)] sm:text-[40px]">
+                No filters. No refusals. No BS.
+              </h2>
+              <p className="mt-4 text-[15px] leading-7 text-[var(--landing-muted)]">
+                Most AI platforms treat you like a child. We don't. Ask what you want, create what you need — the model answers or it doesn't, but the decision is the model's, not a corporate content policy.
+              </p>
+            </Reveal>
+            <div className="mt-12 grid gap-4 md:grid-cols-3">
+              {uncensoredFeatures.map(({ icon: Icon, title, desc }, i) => (
+                <Reveal key={title} delay={i * 0.1}>
+                  <div className="h-full rounded-[24px] bg-[var(--landing-card)] p-6 shadow-[var(--landing-card-shadow)]">
+                    <span className="grid h-9 w-9 place-items-center rounded-full bg-orange-500/10 text-orange-500">
+                      <Icon size={16} />
+                    </span>
+                    <h3 className="mt-5 text-[15px] font-semibold text-[var(--landing-text)]">{title}</h3>
+                    <p className="mt-2 text-[13px] leading-6 text-[var(--landing-muted)]">{desc}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
           </div>
         </section>
 

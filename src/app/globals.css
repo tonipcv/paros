@@ -135,6 +135,32 @@
   .skeleton {
     @apply rounded bg-bgActive animate-pulse;
   }
+
+  .landing-theme.news {
+    --landing-bg: #1b1b1b;
+    --landing-bg-alt: #1a1a1a;
+    --landing-card: #222222;
+    --landing-body: #d4d4d4;
+    --landing-muted: #9a9a9a;
+    --landing-faint: #737373;
+    --landing-chip: rgb(255 255 255 / 0.06);
+    --landing-button: #ffffff;
+    --landing-button-text: #000000;
+  }
+
+  @media (prefers-color-scheme: light) {
+    .landing-theme.news {
+      --landing-bg: #f7f4ee;
+      --landing-bg-alt: #eee9df;
+      --landing-card: #fffaf2;
+      --landing-body: #3f3c37;
+      --landing-muted: #6f6a61;
+      --landing-faint: #8a8378;
+      --landing-chip: rgb(17 17 17 / 0.055);
+      --landing-button: #111111;
+      --landing-button-text: #ffffff;
+    }
+  }
 }
 
 @layer utilities {

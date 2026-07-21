@@ -2,6 +2,8 @@ import { chargeCredits } from "@/lib/account";
 import { hasOpenRouter } from "@/lib/openrouter";
 import { findChatModel } from "@/lib/models";
 import { authenticateApiKey } from "@/lib/api-auth";
+import { searchWeb, buildSearchContext } from "@/lib/web-search";
+import { detectPromptInjection } from "@/lib/prompt-injection";
 
 export const runtime = "nodejs";
 
@@ -40,6 +42,14 @@ export async function POST(request: Request) {
   }
 
   const model = findChatModel(typeof body.model === "string" ? body.model : "");
+
+  if (!model.uncensored) {
+    for (const msg of body.messages as Array<{ content?: string }>) {
+      if (msg.content && detectPromptInjection(msg.content).detected) {
+        return Response.json({ error: { message: "Content blocked" } }, { status: 400 });
+      }
+    }
+  }
   if (auth.workspace.credits < model.credits) {
     return Response.json({ error: { message: "Insufficient credits" } }, { status: 402 });
   }
@@ -62,6 +72,35 @@ export async function POST(request: Request) {
   const frequency = clamp(body.frequency_penalty, -2, 2);
   if (frequency !== undefined) payload.frequency_penalty = frequency;
   if (typeof body.stop === "string" || Array.isArray(body.stop)) payload.stop = body.stop;
+  if (Array.isArray(body.tools) && body.tools.length > 0) payload.tools = body.tools;
+  if (typeof body.tool_choice === "string" || typeof body.tool_choice === "object") payload.tool_choice = body.tool_choice;
+  if (typeof body.reasoning_effort === "string") payload.reasoning_effort = body.reasoning_effort;
+
+  const veniceParams = (body.venice_parameters || {}) as Record<string, unknown>;
+  const enableWebSearch = veniceParams.enable_web_search === true || veniceParams.enable_web_search === "on" || veniceParams.enable_web_search === "auto";
+  const enableWebScraping = veniceParams.enable_web_scraping === true;
+
+  if (enableWebSearch && payload.messages) {
+    const messages = payload.messages as Array<{ role: string; content: string }>;
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    if (lastUserMsg?.content) {
+      const query = typeof lastUserMsg.content === "string" ? lastUserMsg.content.slice(0, 200) : "";
+      const results = await searchWeb(query);
+      if (results.length) {
+        const ctx = buildSearchContext(results);
+        const systemIdx = messages.findIndex((m) => m.role === "system");
+        if (systemIdx >= 0) {
+          messages[systemIdx] = {
+            role: "system",
+            content: `${String(messages[systemIdx].content)}\n\nUse the following web search results to inform your response:\n${ctx}`,
+          };
+        } else {
+          messages.unshift({ role: "system", content: `Use the following web search results to inform your response:\n${ctx}` });
+        }
+        payload.messages = messages;
+      }
+    }
+  }
 
   const upstream = await fetch(`${BASE_URL}/chat/completions`, {
     method: "POST",

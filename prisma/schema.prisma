@@ -27,6 +27,13 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+enum SettlementStatus {
+  RESERVED
+  SETTLED
+  RELEASED
+  RECONCILIATION_REQUIRED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -73,12 +80,13 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  subscription  Subscription?
-  conversations Conversation[]
-  images        GeneratedImage[]
-  apiKeys       ApiKey[]
-  usage         UsageEvent[]
-  characters    Character[]
+  subscription       Subscription?
+  conversations      Conversation[]
+  images             GeneratedImage[]
+  apiKeys            ApiKey[]
+  usage              UsageEvent[]
+  characters         Character[]
+  dailySpends        WorkspaceDailySpend[]
 
   @@map("workspaces")
 }
@@ -188,17 +196,89 @@ model ApiKey {
   @@map("api_keys")
 }
 
-model UsageEvent {
-  id          String    @id @default(cuid())
+// ── Daily spend tracking ──
+
+model WorkspaceDailySpend {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  date          DateTime @db.Date
+  spentMicros   BigInt   @default(0)
+  reservedMicros BigInt   @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([workspaceId, date])
+  @@index([workspaceId, date])
+  @@map("workspace_daily_spends")
+}
+
+// ── Concurrency leases (distributed, TTL-based, survives connection drops) ──
+
+model ConcurrencyLease {
+  id          String   @id @default(cuid())
   workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  kind        String
-  model       String    @default("")
-  credits     Int       @default(0)
-  createdAt   DateTime  @default(now())
+  slot        Int
+  requestId   String
+  expiresAt   DateTime
+
+  @@unique([workspaceId, slot])
+  @@index([workspaceId])
+  @@index([expiresAt])
+  @@map("concurrency_leases")
+}
+
+// ── Inference attempts (one per upstream call, created BEFORE fetch) ──
+
+enum AttemptStatus {
+  CREATED
+  SENT
+  STREAMING
+  SETTLED
+  RELEASED
+  RECONCILIATION_REQUIRED
+  FAILED
+}
+
+// ── Usage events (one per settled inference request) ──
+
+model UsageEvent {
+  id           String           @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  kind         String
+  model        String           @default("")
+  credits      Int              @default(0)
+  tokens       Int              @default(0)
+  costUsd      BigInt           @default(0)
+  generationId String?
+  settlement   SettlementStatus @default(RESERVED)
+  createdAt    DateTime         @default(now())
+
+  attempts     InferenceAttempt[]
 
   @@index([workspaceId])
+  @@index([workspaceId, createdAt])
+  @@index([generationId])
   @@map("usage_events")
+}
+
+model InferenceAttempt {
+  id            String        @id @default(cuid())
+  usageEventId  String
+  usageEvent    UsageEvent    @relation(fields: [usageEventId], references: [id], onDelete: Cascade)
+  attemptNumber Int           @default(1)
+  generationId  String?
+  provider      String        @default("")
+  modelServed   String        @default("")
+  costMicros    BigInt        @default(0)
+  tokens        Int           @default(0)
+  status        AttemptStatus @default(CREATED)
+  errorMessage  String?
+  createdAt     DateTime      @default(now())
+
+  @@index([usageEventId])
+  @@index([generationId])
+  @@map("inference_attempts")
 }
 
 model StripeEvent {
@@ -251,7 +331,7 @@ model EmailVerificationToken {
 model HealthCheck {
   id        String   @id @default(cuid())
   name      String
-  status    String   @default("healthy")  // healthy | degraded | down
+  status    String   @default("healthy")
   message   String?
   durationMs Int?
   alertSent  Boolean  @default(false)
@@ -265,7 +345,7 @@ model AdminAction {
   id           String   @id @default(cuid())
   adminId      String
   adminEmail   String
-  action       String   // e.g. "promote_user", "set_credits", "change_plan", "health_check"
+  action       String
   targetUserId String?
   targetEmail  String?
   details      String?

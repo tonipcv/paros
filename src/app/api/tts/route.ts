@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { getWorkspaceForUser, reserveCredits, refundCredits, recordUsage } from "@/lib/account";
-import { error } from "@/lib/http";
+import { error, handleRouteError } from "@/lib/http";
 import { hasOpenAI, textToSpeech } from "@/lib/openai-audio";
 import { CREDITS } from "@/lib/models";
 
@@ -29,8 +29,7 @@ export async function POST(request: Request) {
       await refundCredits(ws.id, CREDITS.tts).catch((refundErr) => console.error("refundCredits failed:", refundErr));
       throw e;
     }
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "Text-to-speech failed";
-    return error(message, 500);
+  } catch (e) {
+    return handleRouteError(e);
   }
 }
