@@ -452,7 +452,10 @@ export const IMAGE_MODELS: ImageModel[] = [
   { id: "black-forest-labs/flux-1.1-pro", name: "Flux 1.1 Pro", credits: 6, uncensored: true, provider: "openrouter" },
   { id: "stabilityai/stable-diffusion-3.5-large", name: "SD 3.5 Large", credits: 4, uncensored: true, provider: "openrouter" },
   { id: "fal-ai/flux/dev", name: "Flux Dev", credits: 4, uncensored: true, provider: "fal" },
-  { id: "fal-ai/fast-sdxl", name: "Fast SDXL", credits: 3, uncensored: true, provider: "fal" },
+  { id: "fal-ai/flux/schnell", name: "Flux Schnell", credits: 1, uncensored: true, provider: "fal" },
+  { id: "fal-ai/flux-pro/v1.1", name: "Flux Pro", credits: 5, uncensored: true, provider: "fal" },
+  { id: "fal-ai/flux-pro/v1.1-ultra", name: "Flux Pro Ultra", credits: 7, uncensored: true, provider: "fal" },
+  { id: "fal-ai/fast-sdxl", name: "Fast SDXL", credits: 2, uncensored: true, provider: "fal" },
 ];
 
 export const YEARLY_DISCOUNT = 0.9;
