@@ -27,11 +27,12 @@ import {
   Flame,
   Search,
   AlertTriangle,
+  Image,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppStore } from "@/store/useAppStore";
 import type { ChatModel } from "@/lib/models";
-import { VOICES } from "@/lib/models";
+import { VOICES, IMAGE_MODELS } from "@/lib/models";
 import { Markdown } from "@/components/markdown";
 import { Dropdown, Modal } from "@/components/ui";
 import { encryptText, decryptText } from "@/lib/e2e";
@@ -84,6 +85,7 @@ export default function ChatPage() {
   const [rawMode, setRawMode] = useState(true);
   const [matureFilter, setMatureFilter] = useState(false);
   const [webSearch, setWebSearch] = useState(false);
+  const [modelFilter, setModelFilter] = useState<"all" | "uncensored">("all");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -133,6 +135,8 @@ export default function ChatPage() {
   }, [messages, streaming]);
 
   const activeModel: ChatModel | undefined = chatModels.find((m) => m.id === model);
+  const activeImageModel = IMAGE_MODELS.find((m) => m.id === model);
+  const isImageModel = Boolean(activeImageModel);
 
   // ---------- data layer (local vs cloud) ----------
   async function refreshConvos(mode: StorageMode = storageMode) {
@@ -266,8 +270,8 @@ export default function ChatPage() {
     const docs = list.filter((f) => !f.type.startsWith("image/"));
 
     if (imgs.length) {
-      if (!activeModel?.vision) {
-        toast.error(`${activeModel?.name} does not support images. Choose a vision-capable model.`);
+      if (!activeModel?.vision && !isImageModel) {
+        toast.error(`${activeModel?.name || activeImageModel?.name} does not support images. Choose a vision-capable model.`);
       } else {
         const next: string[] = [];
         for (const file of imgs.slice(0, 4)) {
@@ -300,6 +304,35 @@ export default function ChatPage() {
     }
   }
 
+  // ---------- image generation ----------
+  async function sendImage(prompt: string) {
+    setInput("");
+    const userMsg: Msg = { id: `u-${Date.now()}`, role: "user", content: prompt };
+    setMessages((m) => [...m, userMsg]);
+    const assistantId = `a-${Date.now()}`;
+    setMessages((m) => [...m, { id: assistantId, role: "assistant", content: "" }]);
+    setStreaming(true);
+
+    try {
+      const res = await fetch("/api/images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, model }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Image generation failed");
+      const imgUrl = data.image?.url;
+      if (!imgUrl) throw new Error("No image URL returned");
+      const imgMd = `![${prompt.slice(0, 80)}](${imgUrl})`;
+      setMessages((m) => m.map((msg) => (msg.id === assistantId ? { ...msg, content: imgMd } : msg)));
+    } catch (e: any) {
+      toast.error(e.message);
+      setMessages((m) => m.filter((msg) => msg.id !== assistantId));
+    } finally {
+      setStreaming(false);
+    }
+  }
+
   // ---------- send ----------
   async function send() {
     const content = input.trim();
@@ -307,6 +340,12 @@ export default function ChatPage() {
 
     if (storageMode === "cloud" && !encKey) {
       setUnlockOpen(true);
+      return;
+    }
+
+    // Image generation mode
+    if (isImageModel) {
+      await sendImage(content);
       return;
     }
 
@@ -677,38 +716,87 @@ export default function ChatPage() {
             width="w-80"
             trigger={
               <button aria-label="Select model" className="flex h-8 items-center gap-2 rounded-btn border border-borderDefault bg-surface px-3 text-[12px] font-medium text-primary transition hover:border-borderHover">
-                <span>{activeModel?.name || "Select model"}</span>
+                <span>{activeModel?.name || activeImageModel?.name || "Select model"}</span>
+                {isImageModel && <span className="text-[10px] text-orange-400">img</span>}
                 <ChevronDown size={14} className="text-muted" />
               </button>
             }
           >
             {(close) => (
               <div className="max-h-96 overflow-auto">
-                {chatModels.map((m) => (
+                <div className="flex gap-1 border-b border-borderDefault p-1">
                   <button
-                    key={m.id}
-                    onClick={() => {
-                      setModel(m.id);
-                      close();
-                    }}
-                    className={`flex w-full flex-col rounded-lg px-3 py-2 text-left transition hover:bg-bgHover ${
-                      model === m.id ? "bg-bgActive" : ""
+                    onClick={() => setModelFilter("all")}
+                    className={`rounded px-2.5 py-1 text-[11px] font-medium transition ${
+                      modelFilter === "all" ? "bg-bgActive text-primary" : "text-tertiary hover:text-primary"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-medium text-primary">{m.name}</span>
-                      <span className="text-[10px] text-tertiary">{m.credits} cr</span>
-                    </div>
-                    <span className="text-[11px] text-muted">{m.provider} · {m.description}</span>
-                    {(m.vision || m.uncensored || m.reasoning) && (
-                      <span className="mt-1 flex gap-1.5 text-[10px] text-tertiary">
-                        {m.vision && <span className="rounded bg-bgActive px-1.5 py-0.5">Vision</span>}
-                        {m.reasoning && <span className="rounded bg-bgActive px-1.5 py-0.5">Reasoning</span>}
-                        {m.uncensored && <span className="rounded bg-bgActive px-1.5 py-0.5">Uncensored</span>}
-                      </span>
-                    )}
+                    All
                   </button>
-                ))}
+                  <button
+                    onClick={() => setModelFilter("uncensored")}
+                    className={`rounded px-2.5 py-1 text-[11px] font-medium transition ${
+                      modelFilter === "uncensored" ? "bg-orange-500/10 text-orange-500" : "text-tertiary hover:text-primary"
+                    }`}
+                  >
+                    Uncensored
+                  </button>
+                </div>
+                {chatModels
+                  .filter((m) => modelFilter === "all" || m.uncensored)
+                  .map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        setModel(m.id);
+                        close();
+                      }}
+                      className={`flex w-full flex-col rounded-lg px-3 py-2 text-left transition hover:bg-bgHover ${
+                        model === m.id ? "bg-bgActive" : ""
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-medium text-primary">{m.name}</span>
+                        <span className="text-[10px] text-tertiary">{m.credits} cr</span>
+                      </div>
+                      <span className="text-[11px] text-muted">{m.provider} · {m.description}</span>
+                      {(m.vision || m.uncensored || m.reasoning) && (
+                        <span className="mt-1 flex gap-1.5 text-[10px] text-tertiary">
+                          {m.vision && <span className="rounded bg-bgActive px-1.5 py-0.5">Vision</span>}
+                          {m.reasoning && <span className="rounded bg-bgActive px-1.5 py-0.5">Reasoning</span>}
+                          {m.uncensored && <span className="rounded bg-bgActive px-1.5 py-0.5">Uncensored</span>}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                {modelFilter === "all" && (
+                  <>
+                    <div className="border-t border-borderDefault px-3 pt-2 pb-1 text-[10px] font-medium text-tertiary">
+                      Image Generation
+                    </div>
+                    {IMAGE_MODELS.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setModel(m.id);
+                          close();
+                        }}
+                        className={`flex w-full flex-col rounded-lg px-3 py-2 text-left transition hover:bg-bgHover ${
+                          model === m.id ? "bg-bgActive" : ""
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-1.5 text-[13px] font-medium text-primary">
+                            {m.name}
+                            {(m as any).uncensored && <Flame size={12} className="text-orange-400" />}
+                          </span>
+                          <span className="text-[10px] text-tertiary">{m.credits} cr</span>
+                        </div>
+                        <span className="text-[11px] text-muted">{m.provider === "fal" ? "Fal.ai" : "OpenRouter"} · Text-to-Image</span>
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </Dropdown>
@@ -1030,7 +1118,7 @@ export default function ChatPage() {
                   }
                 }}
                 rows={1}
-                placeholder={recording ? "Listening..." : "Message NotOpen..."}
+                placeholder={recording ? "Listening..." : isImageModel ? "Describe the image you want to generate..." : "Message NotOpen..."}
                 className="max-h-44 min-h-[28px] w-full resize-none bg-transparent px-2 py-2 text-[15px] text-primary outline-none placeholder:text-tertiary"
               />
               <div className="flex items-center justify-between px-1">
@@ -1077,17 +1165,19 @@ export default function ChatPage() {
                 ) : (
                   <button
                     onClick={send}
-                    disabled={!input.trim() && attachments.length === 0 && documents.length === 0}
-                    aria-label="Send message"
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-highlight text-bg transition hover:opacity-90 disabled:opacity-30"
+                    disabled={!input.trim()}
+                    aria-label={isImageModel ? "Generate image" : "Send message"}
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-full transition hover:opacity-90 disabled:opacity-30 ${
+                      isImageModel ? "bg-orange-500 text-white" : "bg-highlight text-bg"
+                    }`}
                   >
-                    <ArrowUp size={18} strokeWidth={2.5} />
+                    {isImageModel ? <Image size={16} strokeWidth={2} /> : <ArrowUp size={18} strokeWidth={2.5} />}
                   </button>
                 )}
               </div>
             </div>
             <p className="mt-2 text-center text-[11px] text-tertiary">
-              {activeModel?.name} · {storageMode === "local" ? "Stored only on your device" : "Encrypted sync"}
+              {activeModel?.name || activeImageModel?.name} · {storageMode === "local" ? "Stored only on your device" : "Encrypted sync"}
             </p>
           </div>
         </div>
