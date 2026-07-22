@@ -2,7 +2,8 @@ import { requireUser } from "@/lib/auth";
 import { getWorkspaceForUser, reserveCredits, refundCredits, recordUsage, acquireConcurrencySlot, reserveDailySpend, settleDailySpend, releaseDailySpend, getDailyImageCount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { error, json, handleRouteError } from "@/lib/http";
-import { generateImage, hasOpenRouter } from "@/lib/openrouter";
+import { generateImage as generateImageOR, hasOpenRouter } from "@/lib/openrouter";
+import { generateImage as generateImageFal, hasFal } from "@/lib/fal";
 import { uploadImageFromDataUrl } from "@/lib/storage";
 import { IMAGE_MODELS, IMAGE_STYLES, getPlanLimits } from "@/lib/models";
 import { rateLimitShared } from "@/lib/rate-limit";
@@ -72,9 +73,9 @@ export async function POST(request: Request) {
     const style = IMAGE_STYLES.find((s) => s.id === styleId);
     const fullPrompt = style?.prompt ? `${prompt}, ${style.prompt}` : prompt;
 
-    if (!hasOpenRouter()) {
+    if (!hasOpenRouter() && !hasFal()) {
       releaseDailySpend(ws.id, estMicros).catch(() => {});
-      return error("OPENROUTER_API_KEY is not configured", 503);
+      return error("No inference backend configured", 503);
     }
 
     const kind = inputImage ? "image-edit" : "image";
@@ -83,7 +84,9 @@ export async function POST(request: Request) {
       return error("Insufficient credits", 402);
     }
     try {
-      const rawUrl = await generateImage(model.id, fullPrompt, inputImage);
+      const rawUrl = model.provider === "fal"
+        ? await generateImageFal(model.id, fullPrompt)
+        : await generateImageOR(model.id, fullPrompt, inputImage);
       const url = await uploadImageFromDataUrl(rawUrl);
       await prisma.generatedImage.create({
         data: { workspaceId: ws.id, prompt, model: model.id, style: styleId, url },

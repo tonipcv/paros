@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { reserveCredits, refundCredits, recordUsage } from "@/lib/account";
-import { generateImage, hasOpenRouter } from "@/lib/openrouter";
+import { generateImage as generateImageOR, hasOpenRouter } from "@/lib/openrouter";
+import { generateImage as generateImageFal, hasFal } from "@/lib/fal";
 import { uploadImageFromDataUrl } from "@/lib/storage";
 import { IMAGE_MODELS } from "@/lib/models";
 import { authenticateApiKey } from "@/lib/api-auth";
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
       { status: auth.status, headers: auth.retryAfter ? { "Retry-After": String(auth.retryAfter) } : {} }
     );
   }
-  if (!hasOpenRouter()) {
+  if (!hasOpenRouter() && !hasFal()) {
     return Response.json({ error: { message: "Inference backend not configured" } }, { status: 503 });
   }
 
@@ -31,7 +32,9 @@ export async function POST(request: Request) {
     return Response.json({ error: { message: "Insufficient credits" } }, { status: 402 });
   }
   try {
-    const rawUrl = await generateImage(model.id, prompt);
+    const rawUrl = model.provider === "fal"
+      ? await generateImageFal(model.id, prompt)
+      : await generateImageOR(model.id, prompt);
     const url = await uploadImageFromDataUrl(rawUrl);
     await prisma.generatedImage
       .create({ data: { workspaceId: auth.workspace.id, prompt, model: model.id, style: "none", url } })
