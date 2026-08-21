@@ -18,7 +18,7 @@ export function LandingChatPrompt() {
   function goToLogin() {
     const trimmed = prompt.trim();
     if (trimmed) {
-      sessionStorage.setItem("notopen_pending_prompt", trimmed);
+      sessionStorage.setItem("krx_pending_prompt", trimmed);
     }
     router.push(`/login?intent=chat${trimmed ? `&prompt=${encodeURIComponent(trimmed)}` : ""}`);
   }
@@ -44,14 +44,14 @@ export function LandingChatPrompt() {
     >
       <div className="rounded-[20px] bg-[var(--landing-field)] px-4 pb-3 pt-4 shadow-[var(--landing-card-shadow)]">
         <label htmlFor="landing-prompt" className="sr-only">
-          Message NotOpen
+          Message KRX
         </label>
         <textarea
           id="landing-prompt"
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Message NotOpen..."
+          placeholder="Message KRX..."
           className="min-h-[72px] w-full resize-none bg-transparent text-[16px] leading-7 text-[var(--landing-text)] outline-none placeholder:text-[#555]"
         />
 

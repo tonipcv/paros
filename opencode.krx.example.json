@@ -1,0 +1,38 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "krx": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "KRX",
+      "options": {
+        "baseURL": "http://localhost:3012/api/v1",
+        "apiKey": "{env:KRX_API_KEY}"
+      },
+      "models": {
+        "meta-llama/llama-3.3-70b-instruct": {
+          "name": "Llama 3.3 70B",
+          "limit": { "context": 131072, "output": 8192 }
+        },
+        "deepseek/deepseek-chat": {
+          "name": "DeepSeek V3",
+          "limit": { "context": 65536, "output": 8192 }
+        },
+        "anthropic/claude-sonnet-4": {
+          "name": "Claude Sonnet 4",
+          "limit": { "context": 1000000, "output": 8192 }
+        }
+      }
+    }
+  },
+  "mcp": {
+    "krx": {
+      "type": "remote",
+      "url": "http://localhost:3012/api/mcp",
+      "oauth": false,
+      "headers": { "Authorization": "Bearer {env:KRX_API_KEY}" },
+      "enabled": true,
+      "timeout": 10000
+    }
+  },
+  "model": "krx/meta-llama/llama-3.3-70b-instruct"
+}

@@ -9,6 +9,7 @@ import {
   sendPlanChangedEmail,
 } from "@/lib/emails";
 import type Stripe from "stripe";
+import { grantCredits } from "@/lib/credit-grants";
 
 export const runtime = "nodejs";
 
@@ -86,25 +87,21 @@ async function failEvent(id: string, error: unknown) {
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
   if (invoice.billing_reason !== "subscription_cycle") return;
-  // Idempotency per invoice: Stripe may deliver both invoice.paid and
-  // invoice.payment_succeeded (distinct event ids) for the same invoice.
-  // Guard on the invoice id so a renewal only ever grants credits once.
-  try {
-    await prisma.stripeEvent.create({
-      data: { id: `invoice_cycle:${invoice.id}`, type: "invoice.cycle", status: "PROCESSED", processedAt: new Date() },
-    });
-  } catch (error: unknown) {
-    if (prismaErrorCode(error) === "P2002") return; // already credited
-    throw error;
-  }
   const sub = await prisma.subscription.findFirst({ where: { stripeCustomerId: customerId } });
   if (!sub) return;
   const p = planForPriceId(sub.stripePriceId);
   if (!p) return;
-  await prisma.workspace.update({
-    where: { id: sub.workspaceId },
-    data: { credits: { increment: p.credits } },
+  // The grant sourceRef is the financial idempotency key. The marker remains
+  // as an operational audit record for the two Stripe invoice event variants.
+  const granted = await grantCredits({
+    workspaceId: sub.workspaceId, source: "SUBSCRIPTION", sourceRef: `stripe:invoice:${invoice.id}`,
+    credits: p.credits, monthlyAllowance: p.credits,
+    metadata: { invoiceId: invoice.id, plan: p.id, billingReason: invoice.billing_reason || null },
   });
+  await prisma.stripeEvent.create({
+    data: { id: `invoice_cycle:${invoice.id}`, type: "invoice.cycle", status: "PROCESSED", processedAt: new Date() },
+  }).catch((error: unknown) => { if (prismaErrorCode(error) !== "P2002") throw error; });
+  if (granted.idempotent) return;
   const to = await workspaceEmail(sub.workspaceId);
   if (to) {
     await sendRenewalReceiptEmail(to, { planName: p.name, credits: p.credits }).catch((e) =>
@@ -139,7 +136,12 @@ export async function POST(request: Request) {
           const priceId = checkoutPriceId(session, plan);
           await prisma.workspace.update({
             where: { id: workspaceId },
-            data: { plan: plan.id, credits: { increment: plan.credits } },
+            data: { plan: plan.id },
+          });
+          await grantCredits({
+            workspaceId, source: "SUBSCRIPTION", sourceRef: `stripe:checkout:${session.id}`,
+            credits: plan.credits, monthlyAllowance: plan.credits,
+            metadata: { checkoutSessionId: session.id, plan: plan.id, billingCycle: session.metadata?.billingCycle || "monthly" },
           });
           await prisma.subscription.upsert({
             where: { workspaceId },
@@ -224,6 +226,25 @@ export async function POST(request: Request) {
                   console.error("plan changed email failed:", e)
                 );
               }
+            }
+          } else if (subscription.status === "past_due") {
+            // PAST_DUE throttling: the workspace keeps its data but loses paid
+            // plan limits and leftover credits while Stripe runs its dunning
+            // window. The plan is restored automatically when the next
+            // invoice.paid / active subscription.updated event arrives.
+            const freePlan = PLANS.find((p) => p.id === "FREE");
+            const cap = freePlan?.credits ?? 10;
+            const ws = await prisma.workspace.findUnique({ where: { id: sub.workspaceId }, select: { credits: true } });
+            const target = ws ? Math.min(ws.credits, cap) : cap;
+            await prisma.workspace.update({
+              where: { id: sub.workspaceId },
+              data: { plan: "FREE", credits: target },
+            });
+            const to = await workspaceEmail(sub.workspaceId);
+            if (to) {
+              await sendPaymentFailedEmail(to, { planName: plan?.name }).catch((e) =>
+                console.error("payment failed email failed:", e)
+              );
             }
           }
         }

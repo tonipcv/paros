@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { findOrCreateOAuthUser } from "@/lib/account";
 import { createSession, setSessionCookie } from "@/lib/auth";
+import { notifySignupVerified } from "@/lib/telegram";
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3012";
 
@@ -45,7 +46,10 @@ export async function GET(request: Request) {
     if (!profile.email) throw new Error("No email in profile");
     if (profile.verified_email === false) throw new Error("Email not verified");
 
-    const user = await findOrCreateOAuthUser({ name: profile.name || "", email: profile.email });
+    const { user, created } = await findOrCreateOAuthUser({ name: profile.name || "", email: profile.email });
+    if (created) {
+      await notifySignupVerified(user.email, "Google").catch((e) => console.error("telegram notify failed:", e));
+    }
     const token = await createSession(user.id);
     await setSessionCookie(token);
     store.delete("oauth_state");

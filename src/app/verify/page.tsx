@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-const appName = "NotOpen";
+const appName = "KRX";
 
 export default function VerifyPage() {
   const router = useRouter();
@@ -43,11 +43,11 @@ export default function VerifyPage() {
       <div className="mx-auto flex max-w-[1180px] items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt={appName} className="h-8 w-8 rounded-lg" />
+          <img src="/logo.png" alt={appName} className="brand-logo h-8 w-8 rounded-lg" />
           <span className="font-display text-[21px] font-medium leading-none tracking-[0.01em] text-[var(--landing-text)]">{appName}</span>
         </Link>
         <Link href="/chat" className="rounded-lg bg-[var(--landing-chip)] px-4 py-2 text-[13px] font-medium text-[var(--landing-text)] transition hover:opacity-80">
-          Open NotOpen
+          Open KRX
         </Link>
       </div>
 
@@ -58,7 +58,7 @@ export default function VerifyPage() {
 
           {status === "success" ? (
             <Link href="/chat" className="flex h-11 w-full items-center justify-center rounded-lg bg-[var(--landing-button)] text-sm font-medium text-[var(--landing-button-text)] transition hover:opacity-90">
-              Continue to NotOpen
+              Continue to KRX
             </Link>
           ) : (
             <button onClick={resend} disabled={resending}

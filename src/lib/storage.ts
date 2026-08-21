@@ -50,3 +50,14 @@ export async function uploadImageFromDataUrl(dataUrl: string): Promise<string> {
   const base = process.env.R2_PUBLIC_URL!.replace(/\/$/, "");
   return `${base}/${key}`;
 }
+
+export async function uploadArtifactBytes(bytes: ArrayBuffer, contentType: string, folder = "artifacts") {
+  if (!hasR2()) throw new Error("R2 artifact storage is not configured");
+  const extByType: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "video/mp4": "mp4", "video/webm": "webm", "audio/mpeg": "mp3", "audio/wav": "wav", "audio/x-wav": "wav", "audio/ogg": "ogg" };
+  const ext = extByType[contentType.split(";")[0].toLowerCase()] || "bin";
+  const key = `${folder}/${randomUUID()}.${ext}`;
+  const endpoint = `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${process.env.R2_BUCKET}/${key}`;
+  const response = await r2().fetch(endpoint, { method: "PUT", body: bytes, headers: { "Content-Type": contentType } });
+  if (!response.ok) throw new Error(`R2 artifact upload failed (${response.status})`);
+  return `${process.env.R2_PUBLIC_URL!.replace(/\/$/, "")}/${key}`;
+}

@@ -30,7 +30,9 @@ export type RateLimitResult = { ok: boolean; retryAfter?: number; remaining?: nu
 // Shared, cross-instance rate limiter backed by Postgres (fixed window).
 // A single atomic upsert increments the current window's counter and returns
 // the new count, so it is correct across serverless instances/regions.
-// Falls back to the in-memory limiter if the database is unreachable.
+// FAILS CLOSED: if the database is unreachable the request is rejected —
+// the app cannot serve authenticated routes without the DB anyway, so a
+// degraded limiter must never silently disable abuse protection.
 export async function rateLimitShared(
   key: string,
   limit: number,
@@ -56,16 +58,21 @@ export async function rateLimitShared(
     }
     return { ok: true, remaining: Math.max(0, limit - count) };
   } catch (e) {
-    console.error("rateLimitShared DB error — falling back to in-memory:", e);
-    return rateLimit(key, limit, limit / windowSec);
+    console.error("rateLimitShared DB error — failing closed:", e);
+    return { ok: false, retryAfter: windowSec };
   }
 }
 
 export function clientIp(request: Request): string {
-  return (
-    request.headers.get("cf-connecting-ip") ||
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  const cfRay = request.headers.get("cf-ray");
+  const cf = request.headers.get("cf-connecting-ip")?.trim();
+  const real = request.headers.get("x-real-ip")?.trim();
+  const fwd = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  // cf-connecting-ip is only trustworthy when Cloudflare is actually in front
+  // (proven by the cf-ray header it adds to every proxied request).
+  if (cfRay && cf) return cf;
+  if (real) return real;
+  if (cf) return cf;
+  if (fwd) return fwd;
+  return "unknown";
 }

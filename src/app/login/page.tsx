@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 import { AuthDivider, AuthField, AuthShell, GoogleButton, authButtonClass, authInputClass } from "@/components/auth";
+import { captureUtm, utmQueryString } from "@/lib/utm";
 
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -13,6 +14,10 @@ export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
+
+  useEffect(() => {
+    captureUtm();
+  }, []);
 
   async function continueAfterAuth() {
     const searchParams = new URLSearchParams(window.location.search);
@@ -22,7 +27,7 @@ export default function LoginPage() {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, billingCycle }),
+        body: JSON.stringify({ plan, billingCycle, utm: utmQueryString().slice(1) }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.url) {

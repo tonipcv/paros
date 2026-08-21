@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  engineType = "client"
 }
 
 datasource db {
@@ -34,6 +35,95 @@ enum SettlementStatus {
   RECONCILIATION_REQUIRED
 }
 
+enum BillingLedgerStatus {
+  RESERVED
+  SENT_TO_PROVIDER
+  SETTLED
+  RELEASED
+  RECONCILIATION_REQUIRED
+  FAILED
+}
+
+enum CreditGrantSource {
+  FREE
+  SUBSCRIPTION
+  ADMIN
+  PROMOTION
+  API_PREPAID
+  MIGRATION
+}
+
+enum ModelModality {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  EMBEDDING
+  MUSIC
+  UPSCALE
+  INPAINT
+  ASR
+  TTS
+}
+
+enum CatalogStatus {
+  DRAFT
+  ACTIVE
+  DEGRADED
+  OFFLINE
+  DEPRECATED
+}
+
+enum ProviderKind {
+  AGGREGATOR
+  DIRECT
+  SELF_HOSTED
+}
+
+enum RouteStatus {
+  ACTIVE
+  DEGRADED
+  OFFLINE
+  DISABLED
+}
+
+enum PricingUnit {
+  MILLION_INPUT_TOKENS
+  MILLION_OUTPUT_TOKENS
+  MILLION_CACHED_INPUT_TOKENS
+  MEGAPIXEL
+  IMAGE
+  SECOND
+  MINUTE
+  CHARACTER
+  REQUEST
+}
+
+enum CatalogSyncStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+}
+
+enum GenerationJobStatus {
+  QUEUED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCEL_REQUESTED
+  CANCELED
+  RECONCILIATION_REQUIRED
+}
+
+enum ArtifactKind {
+  IMAGE
+  VIDEO
+  AUDIO
+  MUSIC
+  FILE
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -44,9 +134,9 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  workspace Workspace?
-  sessions  Session[]
-  passwordResets PasswordResetToken[]
+  workspace          Workspace?
+  sessions           Session[]
+  passwordResets     PasswordResetToken[]
   emailVerifications EmailVerificationToken[]
 
   @@map("users")
@@ -65,45 +155,127 @@ model Session {
 }
 
 model Workspace {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String   @default("My Workspace")
-  plan      Plan     @default(FREE)
-  credits   Int      @default(10)
-  onboardingCompleted Boolean @default(false)
-  privacyMode Boolean @default(false)
-  encEnabled  Boolean  @default(false)
-  encSalt     String?
-  encCheckIv  String?
-  encCheckCt  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String   @default("My Workspace")
+  plan                Plan     @default(FREE)
+  credits             Int      @default(10)
+  onboardingCompleted Boolean  @default(false)
+  privacyMode         Boolean  @default(false)
+  encEnabled          Boolean  @default(false)
+  encSalt             String?
+  encCheckIv          String?
+  encCheckCt          String?
+  isInternal          Boolean  @default(false)
+  providerAccess      Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  subscription       Subscription?
-  conversations      Conversation[]
-  images             GeneratedImage[]
-  apiKeys            ApiKey[]
-  usage              UsageEvent[]
-  characters         Character[]
-  dailySpends        WorkspaceDailySpend[]
+  subscription   Subscription?
+  conversations  Conversation[]
+  images         GeneratedImage[]
+  apiKeys        ApiKey[]
+  usage          UsageEvent[]
+  characters     Character[]
+  dailySpends    WorkspaceDailySpend[]
+  generationJobs GenerationJob[]
+  artifacts      GeneratedArtifact[]
+  billingLedger  BillingLedger[]
+  creditGrants   CreditGrant[]
+  creditDebits   CreditDebit[]
 
   @@map("workspaces")
 }
 
+model CreditGrant {
+  id                  String            @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source              CreditGrantSource
+  sourceRef           String?           @unique
+  creditsGranted      Int
+  creditsRemaining    Int
+  cogsBudgetMicros    BigInt
+  cogsRemainingMicros BigInt
+  grantedAt           DateTime          @default(now())
+  expiresAt           DateTime
+  expiredAt           DateTime?
+  metadata            Json              @default("{}")
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([workspaceId, expiresAt])
+  @@index([workspaceId, creditsRemaining])
+  @@map("credit_grants")
+}
+
+model CreditDebit {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  credits     Int
+  allocations Json      @default("[]")
+  refundedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId, refundedAt, createdAt])
+  @@map("credit_debits")
+}
+
+model BillingLedger {
+  id                  String              @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requestId           String              @unique
+  providerRequestId   String?
+  provider            String
+  model               String
+  modality            ModelModality
+  status              BillingLedgerStatus @default(RESERVED)
+  inputTokens         Int                 @default(0)
+  outputTokens        Int                 @default(0)
+  cachedTokens        Int                 @default(0)
+  imageMegapixels     Float               @default(0)
+  imageCount          Int                 @default(0)
+  audioSeconds        Float               @default(0)
+  videoSeconds        Float               @default(0)
+  providerCostMicros  BigInt              @default(0)
+  providerFeeMicros   BigInt              @default(0)
+  toolsCostMicros     BigInt              @default(0)
+  privacyCostMicros   BigInt              @default(0)
+  reservedCostMicros  BigInt              @default(0)
+  settledCostMicros   BigInt              @default(0)
+  creditsReserved     Int                 @default(0)
+  creditsSettled      Int                 @default(0)
+  pricingVersion      String
+  creditPolicyVersion String
+  metadata            Json                @default("{}")
+  createdAt           DateTime            @default(now())
+  sentAt              DateTime?
+  settledAt           DateTime?
+  updatedAt           DateTime            @updatedAt
+
+  @@index([workspaceId, createdAt])
+  @@index([status, createdAt])
+  @@index([provider, providerRequestId])
+  @@index([model, createdAt])
+  @@map("billing_ledger")
+}
+
 model Character {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   workspaceId  String
   workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   name         String
-  tagline      String   @default("")
-  emoji        String   @default("🤖")
-  systemPrompt String   @db.Text
-  greeting     String   @default("") @db.Text
-  model        String   @default("")
-  isPublic     Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  tagline      String    @default("")
+  emoji        String    @default("🤖")
+  systemPrompt String    @db.Text
+  greeting     String    @default("") @db.Text
+  model        String    @default("")
+  isPublic     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   conversations Conversation[]
 
@@ -128,20 +300,20 @@ model Subscription {
 }
 
 model Conversation {
-  id          String    @id @default(cuid())
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  characterId String?
-  character   Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
-  title       String    @default("New chat")
-  model       String    @default("")
-  ephemeral   Boolean   @default(false)
-  temperature Float     @default(0.7)
-  systemPrompt String?  @db.Text
-  encrypted   Boolean   @default(false)
-  titleIv     String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String     @id @default(cuid())
+  workspaceId  String
+  workspace    Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  characterId  String?
+  character    Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+  title        String     @default("New chat")
+  model        String     @default("")
+  ephemeral    Boolean    @default(false)
+  temperature  Float      @default(0.7)
+  systemPrompt String?    @db.Text
+  encrypted    Boolean    @default(false)
+  titleIv      String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   messages Message[]
 
@@ -176,9 +348,15 @@ model GeneratedImage {
   url         String    @db.Text
   width       Int       @default(1024)
   height      Int       @default(1024)
+  aspectRatio String    @default("1:1")
+  quality     String    @default("standard")
+  negativePrompt String? @db.Text
+  seed        Int?
+  favorite    Boolean   @default(false)
   createdAt   DateTime  @default(now())
 
   @@index([workspaceId])
+  @@index([workspaceId, favorite, createdAt])
   @@map("generated_images")
 }
 
@@ -196,16 +374,242 @@ model ApiKey {
   @@map("api_keys")
 }
 
+model ModelProvider {
+  id            String       @id @default(cuid())
+  slug          String       @unique
+  name          String
+  kind          ProviderKind @default(AGGREGATOR)
+  baseUrl       String?
+  enabled       Boolean      @default(true)
+  priority      Int          @default(100)
+  zeroRetention Boolean      @default(false)
+  metadata      Json         @default("{}")
+  lastSyncedAt  DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  routes   ModelRoute[]
+  syncRuns CatalogSyncRun[]
+
+  @@index([enabled, priority])
+  @@map("model_providers")
+}
+
+model CatalogModel {
+  id                 String        @id @default(cuid())
+  publicId           String        @unique
+  name               String
+  description        String        @default("") @db.Text
+  author             String        @default("")
+  modality           ModelModality
+  status             CatalogStatus @default(DRAFT)
+  contextTokens      Int?
+  maxOutputTokens    Int?
+  credits            Int           @default(1)
+  featured           Boolean       @default(false)
+  sortOrder          Int           @default(1000)
+  releasedAt         DateTime?
+  deprecatedAt       DateTime?
+  replacementModelId String?
+  metadata           Json          @default("{}")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  capabilities ModelCapability?
+  aliases      ModelAlias[]
+  routes       ModelRoute[]
+  prices       ModelPrice[]
+
+  @@index([modality, status, sortOrder])
+  @@index([author])
+  @@index([featured, status])
+  @@map("catalog_models")
+}
+
+model ModelCapability {
+  id               String       @id @default(cuid())
+  modelId          String       @unique
+  model            CatalogModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  vision           Boolean      @default(false)
+  videoInput       Boolean      @default(false)
+  audioInput       Boolean      @default(false)
+  reasoning        Boolean      @default(false)
+  reasoningEffort  Boolean      @default(false)
+  functionCalling  Boolean      @default(false)
+  structuredOutput Boolean      @default(false)
+  logProbs         Boolean      @default(false)
+  multipleImages   Boolean      @default(false)
+  webSearch        Boolean      @default(false)
+  uncensored       Boolean      @default(false)
+  coding           Boolean      @default(false)
+  streaming        Boolean      @default(true)
+  tee              Boolean      @default(false)
+  e2ee             Boolean      @default(false)
+  imageGeneration  Boolean      @default(false)
+  imageEditing     Boolean      @default(false)
+  textToVideo      Boolean      @default(false)
+  imageToVideo     Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@map("model_capabilities")
+}
+
+model ModelAlias {
+  id        String       @id @default(cuid())
+  alias     String       @unique
+  modelId   String
+  model     CatalogModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@index([modelId])
+  @@map("model_aliases")
+}
+
+model ModelRoute {
+  id              String        @id @default(cuid())
+  modelId         String
+  model           CatalogModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  providerId      String
+  provider        ModelProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  providerModelId String
+  status          RouteStatus   @default(ACTIVE)
+  priority        Int           @default(100)
+  weight          Int           @default(100)
+  latencyMs       Int?
+  errorRate       Float         @default(0)
+  lastCheckedAt   DateTime?
+  lastError       String?       @db.Text
+  metadata        Json          @default("{}")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  prices ModelPrice[]
+
+  @@unique([providerId, providerModelId])
+  @@index([modelId, status, priority])
+  @@index([providerId, status])
+  @@map("model_routes")
+}
+
+model ModelPrice {
+  id          String       @id @default(cuid())
+  modelId     String
+  model       CatalogModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  routeId     String?
+  route       ModelRoute?  @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  unit        PricingUnit
+  usd         Decimal      @db.Decimal(20, 8)
+  currency    String       @default("USD")
+  effectiveAt DateTime     @default(now())
+  expiresAt   DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([modelId, unit, effectiveAt])
+  @@index([routeId])
+  @@map("model_prices")
+}
+
+model CatalogSyncRun {
+  id          String            @id @default(cuid())
+  providerId  String
+  provider    ModelProvider     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  status      CatalogSyncStatus @default(RUNNING)
+  discovered  Int               @default(0)
+  created     Int               @default(0)
+  updated     Int               @default(0)
+  disabled    Int               @default(0)
+  error       String?           @db.Text
+  startedAt   DateTime          @default(now())
+  completedAt DateTime?
+
+  @@index([providerId, startedAt])
+  @@map("catalog_sync_runs")
+}
+
+model GenerationJob {
+  id                String              @id @default(cuid())
+  workspaceId       String
+  workspace         Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  publicModelId     String
+  provider          String
+  providerModelId   String
+  providerRequestId String?
+  billingLedgerId   String?             @unique
+  modality          ModelModality
+  operation         String
+  status            GenerationJobStatus @default(QUEUED)
+  progress          Int                 @default(0)
+  input             Json
+  output            Json                @default("{}")
+  error             String?             @db.Text
+  idempotencyKey    String?
+  creditsReserved   Int                 @default(0)
+  actualCostMicros  BigInt              @default(0)
+  attempts          Int                 @default(0)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  expiresAt         DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  artifacts GeneratedArtifact[]
+
+  @@unique([provider, providerRequestId])
+  @@unique([workspaceId, idempotencyKey])
+  @@index([workspaceId, status, createdAt])
+  @@index([status, updatedAt])
+  @@index([provider, status])
+  @@map("generation_jobs")
+}
+
+model GeneratedArtifact {
+  id          String        @id @default(cuid())
+  jobId       String
+  job         GenerationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  kind        ArtifactKind
+  url         String        @db.Text
+  contentType String
+  sizeBytes   BigInt?
+  width       Int?
+  height      Int?
+  durationMs  Int?
+  metadata    Json          @default("{}")
+  expiresAt   DateTime?
+  createdAt   DateTime      @default(now())
+
+  @@index([jobId])
+  @@index([workspaceId, createdAt])
+  @@map("generated_artifacts")
+}
+
+model ProviderWebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  eventId     String
+  payloadHash String
+  processed   Boolean   @default(false)
+  error       String?   @db.Text
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@unique([provider, eventId])
+  @@index([processed, receivedAt])
+  @@map("provider_webhook_events")
+}
+
 // ── Daily spend tracking ──
 
 model WorkspaceDailySpend {
-  id            String   @id @default(cuid())
-  workspaceId   String
-  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  date          DateTime @db.Date
-  spentMicros   BigInt   @default(0)
-  reservedMicros BigInt   @default(0)
-  updatedAt     DateTime @updatedAt
+  id             String    @id @default(cuid())
+  workspaceId    String
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  date           DateTime  @db.Date
+  spentMicros    BigInt    @default(0)
+  reservedMicros BigInt    @default(0)
+  updatedAt      DateTime  @updatedAt
 
   @@unique([workspaceId, date])
   @@index([workspaceId, date])
@@ -254,7 +658,7 @@ model UsageEvent {
   settlement   SettlementStatus @default(RESERVED)
   createdAt    DateTime         @default(now())
 
-  attempts     InferenceAttempt[]
+  attempts InferenceAttempt[]
 
   @@index([workspaceId])
   @@index([workspaceId, createdAt])
@@ -329,13 +733,13 @@ model EmailVerificationToken {
 }
 
 model HealthCheck {
-  id        String   @id @default(cuid())
-  name      String
-  status    String   @default("healthy")
-  message   String?
+  id         String   @id @default(cuid())
+  name       String
+  status     String   @default("healthy")
+  message    String?
   durationMs Int?
   alertSent  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   @@index([name, createdAt])
   @@map("health_checks")

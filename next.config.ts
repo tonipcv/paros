@@ -28,8 +28,17 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   eslint: { ignoreDuringBuilds: true },
   poweredByHeader: false,
+  // STT/upload routes accept audio up to 25 MB; Next's default 10 MB body limit
+  // would otherwise truncate FormData and fail every large transcription.
+  experimental: { middlewareClientMaxBodySize: "25mb" },
   images: {
     remotePatterns: [{ protocol: "https", hostname: "**" }],
+  },
+  // Prisma 6.19 uses the new query compiler (query_compiler_bg.wasm).
+  // Vercel's file tracing drops .wasm files from serverless bundles,
+  // breaking every DB call at runtime (ENOENT). Keep them in the build.
+  outputFileTracingIncludes: {
+    "/api/**": ["./node_modules/.prisma/client/**"],
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

@@ -17,7 +17,7 @@ function withPrivacyHeaders(res: NextResponse, pathname: string) {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession =
-    request.cookies.has("nebula_session") || request.cookies.has("__Host-nebula_session");
+    request.cookies.has("krx_session") || request.cookies.has("__Host-krx_session");
 
   if (protectedPages.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     if (!hasSession) {

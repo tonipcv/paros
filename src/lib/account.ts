@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "./prisma";
 import { hashPassword } from "./auth";
+import { allocateGrantCredits } from "./credit-grants";
 
 export async function createGuestUser() {
   const email = `guest_${randomUUID()}@guest.local`;
@@ -26,27 +27,92 @@ export async function createUserWithWorkspace(data: { name: string; email: strin
 
 export async function getWorkspaceForUser(userId: string) { return prisma.workspace.findUnique({ where: { userId } }); }
 
-export async function findOrCreateOAuthUser(data: { name: string; email: string }) {
+export async function findOrCreateOAuthUser(data: { name: string; email: string }): Promise<{ user: Awaited<ReturnType<typeof prisma.user.create>>; created: boolean }> {
   const email = data.email.toLowerCase().trim();
   const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) return existing;
-  return prisma.user.create({
+  if (existing) return { user: existing, created: false };
+  const user = await prisma.user.create({
     data: { email, name: data.name || email.split("@")[0], emailVerified: new Date(), workspace: { create: { name: `${data.name || email.split("@")[0]}'s Workspace`, plan: "FREE", credits: 10 } } },
   });
+  return { user, created: true };
 }
 
 export async function chargeCredits(workspaceId: string, kind: string, model: string, credits: number, usage?: { tokens?: number; cost?: number; generationId?: string }) {
-  const updated = await prisma.workspace.updateMany({ where: { id: workspaceId, credits: { gte: credits } }, data: { credits: { decrement: credits } } });
-  if (updated.count === 0) throw new Error("Insufficient credits");
+  if (!(await reserveCredits(workspaceId, credits))) throw new Error("Insufficient credits");
   await prisma.usageEvent.create({ data: { workspaceId, kind, model, credits, tokens: usage?.tokens ?? 0, costUsd: usage?.cost ? BigInt(Math.round(usage.cost * 1_000_000)) : 0n, generationId: usage?.generationId ?? null, settlement: "SETTLED" } });
 }
 
 export async function reserveCredits(workspaceId: string, credits: number): Promise<boolean> {
-  return (await prisma.workspace.updateMany({ where: { id: workspaceId, credits: { gte: credits } }, data: { credits: { decrement: credits } } })).count > 0;
+  if (!Number.isInteger(credits) || credits <= 0) return false;
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const charged = await tx.workspace.updateMany({
+        where: { id: workspaceId, providerAccess: true, credits: { gte: credits } },
+        data: { credits: { decrement: credits } },
+      });
+      if (!charged.count) return false;
+
+      const now = new Date();
+      const grants = await tx.creditGrant.findMany({
+        where: { workspaceId, creditsRemaining: { gt: 0 }, expiredAt: null, grantedAt: { lte: now }, expiresAt: { gt: now } },
+        orderBy: [{ expiresAt: "asc" }, { grantedAt: "asc" }],
+        select: { id: true, creditsRemaining: true, cogsRemainingMicros: true },
+      });
+      const { allocations } = allocateGrantCredits(grants, credits);
+      for (const allocation of allocations) {
+        const budget = BigInt(allocation.credits) * 15_000n;
+        const updated = await tx.creditGrant.updateMany({
+          where: { id: allocation.grantId, creditsRemaining: { gte: allocation.credits }, cogsRemainingMicros: { gte: budget } },
+          data: { creditsRemaining: { decrement: allocation.credits }, cogsRemainingMicros: { decrement: budget } },
+        });
+        if (!updated.count) throw new Error("Concurrent credit grant update");
+      }
+      await tx.creditDebit.create({ data: { workspaceId, credits, allocations } });
+      return true;
+    }, { isolationLevel: "Serializable" });
+  } catch (error) {
+    console.error("credit reservation failed:", error);
+    return false;
+  }
+}
+
+// Atomic additional charge on top of an existing reservation (no new grant allocation).
+export async function chargeCreditsAdditional(workspaceId: string, credits: number): Promise<boolean> {
+  if (!Number.isInteger(credits) || credits <= 0) return true;
+  try {
+    const result = await prisma.workspace.updateMany({
+      where: { id: workspaceId, providerAccess: true, credits: { gte: credits } },
+      data: { credits: { decrement: credits } },
+    });
+    return result.count > 0;
+  } catch (error) {
+    console.error("additional credit charge failed:", error);
+    return false;
+  }
 }
 
 export async function refundCredits(workspaceId: string, credits: number) {
-  await prisma.workspace.update({ where: { id: workspaceId }, data: { credits: { increment: credits } } });
+  if (!Number.isInteger(credits) || credits <= 0) return;
+  await prisma.$transaction(async (tx) => {
+    const debit = await tx.creditDebit.findFirst({
+      where: { workspaceId, credits, refundedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    await tx.workspace.update({ where: { id: workspaceId }, data: { credits: { increment: credits } } });
+    if (!debit) return;
+    const allocations = Array.isArray(debit.allocations) ? debit.allocations : [];
+    for (const raw of allocations) {
+      if (!raw || typeof raw !== "object") continue;
+      const grantId = (raw as { grantId?: unknown }).grantId;
+      const amount = (raw as { credits?: unknown }).credits;
+      if (typeof grantId !== "string" || typeof amount !== "number" || !Number.isInteger(amount) || amount <= 0) continue;
+      await tx.creditGrant.updateMany({
+        where: { id: grantId, expiredAt: null, expiresAt: { gt: new Date() } },
+        data: { creditsRemaining: { increment: amount }, cogsRemainingMicros: { increment: BigInt(amount) * 15_000n } },
+      });
+    }
+    await tx.creditDebit.update({ where: { id: debit.id }, data: { refundedAt: new Date() } });
+  }, { isolationLevel: "Serializable" });
 }
 
 // ── Concurrency: lease table with TTL ──

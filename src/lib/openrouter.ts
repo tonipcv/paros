@@ -14,7 +14,7 @@ export function headers(baseUrl?: string, apiKey?: string) {
     Authorization: `Bearer ${key}`,
     "Content-Type": "application/json",
     "HTTP-Referer": appUrl,
-    "X-Title": "NotOpen",
+    "X-Title": "KRX",
   };
 }
 
@@ -187,6 +187,17 @@ export async function streamChatWithFallback(
 }
 
 export async function generateImage(model: string, prompt: string, inputImage?: string) {
+  return (await generateImageDetailed(model, prompt, inputImage)).url;
+}
+
+export async function generateImageDetailed(model: string, prompt: string, inputImage?: string, options: { aspectRatio?: string; quality?: string } = {}): Promise<{
+  url: string;
+  providerRequestId?: string;
+  costUsd?: number;
+  width?: number;
+  height?: number;
+  megapixels?: number;
+}> {
   const content: ContentPart[] = [{ type: "text", text: prompt }];
   if (inputImage) content.push({ type: "image_url", image_url: { url: inputImage } });
   const res = await fetch(`${BASE_URL}/chat/completions`, {
@@ -196,6 +207,10 @@ export async function generateImage(model: string, prompt: string, inputImage?: 
       model,
       messages: [{ role: "user", content }],
       modalities: ["image", "text"],
+      image_config: {
+        aspect_ratio: options.aspectRatio || "1:1",
+        image_size: options.quality === "max" ? "2K" : options.quality === "fast" ? "1K" : "1K",
+      },
     }),
   });
   if (!res.ok) {
@@ -206,5 +221,9 @@ export async function generateImage(model: string, prompt: string, inputImage?: 
   const message = data?.choices?.[0]?.message;
   const url: string | undefined = message?.images?.[0]?.image_url?.url;
   if (!url) throw new Error("No image returned by model");
-  return url;
+  return {
+    url,
+    providerRequestId: typeof data?.id === "string" ? data.id : undefined,
+    costUsd: typeof data?.usage?.cost === "number" ? data.usage.cost : undefined,
+  };
 }

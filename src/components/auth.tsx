@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
-const appName = "NotOpen";
+const appName = "KRX";
 
 export const authInputClass =
   "h-11 w-full rounded-lg bg-[var(--landing-field)] px-3 text-sm text-[var(--landing-text)] outline-none placeholder:text-[var(--landing-faint)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] focus:ring-1 focus:ring-[var(--landing-faint)]";
@@ -33,7 +33,7 @@ export function AuthShell({
       >
         <Link href="/" className="mb-8 flex items-center justify-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt={appName} className="h-7 w-7 rounded-lg" />
+          <img src="/logo.png" alt={appName} className="brand-logo h-7 w-7 rounded-lg" />
           <span className="font-display text-[22px] font-medium leading-none tracking-[0.01em] text-[var(--landing-text)]">{appName}</span>
         </Link>
 
@@ -50,6 +50,8 @@ export function AuthShell({
 }
 
 export function GoogleButton() {
+  const googleId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  if (!googleId) return null;
   return (
     <a
       href="/api/auth/google"

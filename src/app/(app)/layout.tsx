@@ -18,12 +18,13 @@ import {
   ChevronDown,
   LayoutDashboard,
   Sparkles,
+  Boxes,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { initials } from "@/lib/ui-helpers";
 import { VerifyEmailBanner } from "@/components/verify-email-banner";
 
-const appName = "NotOpen";
+const appName = "KRX";
 
 const nav = [
   { to: "/chat", label: "Chat", icon: MessageSquare },
@@ -136,13 +137,14 @@ function Sidebar({
   const adminItems = [
     { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
     { to: "/admin/users", label: "Users", icon: Users },
+    ...(user.role === "SUPER_ADMIN" ? [{ to: "/admin/models", label: "Model catalog", icon: Boxes }] : []),
   ];
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-[62px] shrink-0 items-center gap-2.5 px-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt={appName} className="h-7 w-7 rounded-lg" />
+        <img src="/logo.png" alt={appName} className="brand-logo h-7 w-7 rounded-lg" />
         <span className="font-display text-[20px] font-medium leading-none tracking-[0.01em] text-primary">{appName}</span>
       </div>
 

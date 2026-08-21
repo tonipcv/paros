@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight, Shield } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 
-const brandName = "NotOpen";
+const brandName = "KRX";
 
 export const metadata: Metadata = {
  title: "Judge Allows US Search Warrant Targeting Executive's AI Chatbot Records",

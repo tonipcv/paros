@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MessageSquare, Image as ImageIcon, Code2, ArrowRight } from "lucide-react";
 
-const appName = "NotOpen";
+const appName = "KRX";
 
 const goals = [
   { id: "chat", label: "Chat with AI models", icon: MessageSquare },
@@ -33,7 +33,7 @@ export default function OnboardingPage() {
       <div className="mx-auto flex max-w-[1180px] items-center justify-between">
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt={appName} className="h-8 w-8 rounded-lg" />
+          <img src="/logo.png" alt={appName} className="brand-logo h-8 w-8 rounded-lg" />
           <span className="font-display text-[21px] font-medium leading-none tracking-[0.01em] text-[var(--landing-text)]">{appName}</span>
         </div>
       </div>
@@ -42,7 +42,7 @@ export default function OnboardingPage() {
         <div className="hidden max-w-xl lg:block">
           <p className="text-[13px] text-[var(--landing-faint)]">Workspace setup</p>
           <h1 className="font-display mt-4 text-[42px] font-medium leading-[1.02] text-[var(--landing-text)]">
-            Set up NotOpen.
+            Set up KRX.
           </h1>
         </div>
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,9 +6,9 @@
 
 :root {
   color-scheme: dark;
-  --bg: 8 8 8;
-  --surface: 17 17 17;
-  --border: 26 26 26;
+  --bg: 0 0 0;
+  --surface: 11 11 11;
+  --border: 24 24 24;
   --muted: 138 138 138;
   --silver: 163 163 163;
   --accent: 212 212 212;
@@ -19,36 +19,36 @@
   --secondary: 163 163 163;
   --tertiary: 138 138 138;
   --borderHover: 138 138 138;
-  --bgHover: 13 13 13;
-  --bgActive: 26 26 26;
-  --bgCard: 17 17 17;
-  --sidebar: 8 8 8;
-  --sidebarHover: 17 17 17;
+  --bgHover: 12 12 12;
+  --bgActive: 24 24 24;
+  --bgCard: 11 11 11;
+  --sidebar: 0 0 0;
+  --sidebarHover: 12 12 12;
   --sidebarText: 163 163 163;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
-    --bg: 255 255 255;
-    --surface: 247 247 248;
-    --border: 229 229 231;
+    --bg: 245 247 249;
+    --surface: 238 242 245;
+    --border: 226 230 234;
     --muted: 142 142 142;
     --silver: 103 103 103;
-    --accent: 52 52 52;
-    --accentHover: 13 13 13;
+    --accent: 40 40 40;
+    --accentHover: 0 0 0;
     --accentDark: 120 120 120;
-    --highlight: 13 13 13;
-    --primary: 13 13 13;
-    --secondary: 75 75 75;
-    --tertiary: 155 155 155;
-    --borderHover: 180 180 180;
-    --bgHover: 244 244 244;
-    --bgActive: 236 236 236;
+    --highlight: 0 0 0;
+    --primary: 10 10 10;
+    --secondary: 70 75 80;
+    --tertiary: 150 155 160;
+    --borderHover: 170 175 180;
+    --bgHover: 235 239 242;
+    --bgActive: 228 232 236;
     --bgCard: 255 255 255;
-    --sidebar: 249 249 249;
-    --sidebarHover: 236 236 236;
-    --sidebarText: 75 75 75;
+    --sidebar: 240 243 246;
+    --sidebarHover: 230 234 238;
+    --sidebarText: 75 80 85;
   }
 }
 
@@ -60,7 +60,7 @@
   body {
     @apply m-0 bg-bgPage font-sans text-[13px] text-secondary antialiased;
     background: rgb(var(--bg));
-    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -137,9 +137,9 @@
   }
 
   .landing-theme.news {
-    --landing-bg: #1b1b1b;
-    --landing-bg-alt: #1a1a1a;
-    --landing-card: #222222;
+    --landing-bg: #000000;
+    --landing-bg-alt: #050505;
+    --landing-card: #0d0d0d;
     --landing-body: #d4d4d4;
     --landing-muted: #9a9a9a;
     --landing-faint: #737373;
@@ -150,14 +150,14 @@
 
   @media (prefers-color-scheme: light) {
     .landing-theme.news {
-      --landing-bg: #f7f4ee;
-      --landing-bg-alt: #eee9df;
-      --landing-card: #fffaf2;
-      --landing-body: #3f3c37;
-      --landing-muted: #6f6a61;
-      --landing-faint: #8a8378;
-      --landing-chip: rgb(17 17 17 / 0.055);
-      --landing-button: #111111;
+      --landing-bg: #f5f7f9;
+      --landing-bg-alt: #eef1f4;
+      --landing-card: #ffffff;
+      --landing-body: #3a4046;
+      --landing-muted: #666d75;
+      --landing-faint: #8a9198;
+      --landing-chip: rgb(10 10 10 / 0.055);
+      --landing-button: #0a0a0a;
       --landing-button-text: #ffffff;
     }
   }
@@ -176,14 +176,14 @@
   }
 
   .font-display {
-    font-family: "Newsreader", Georgia, "Times New Roman", serif;
+    font-family: "Helvetica Neue", Helvetica, Arial, -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   .landing-theme {
-    --landing-bg: #070707;
-    --landing-bg-alt: #0a0a0a;
-    --landing-card: #111111;
-    --landing-field: #0b0b0b;
+    --landing-bg: #000000;
+    --landing-bg-alt: #050505;
+    --landing-card: #0d0d0d;
+    --landing-field: #080808;
     --landing-text: #ffffff;
     --landing-body: #d6d6d6;
     --landing-muted: #9a9a9a;
@@ -192,29 +192,65 @@
     --landing-button: #ffffff;
     --landing-button-text: #000000;
     --landing-button-hover: #e8e8e8;
-    --landing-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.065), 0 24px 70px rgb(0 0 0 / 0.24);
-    --landing-hero-shadow: 0 34px 120px rgb(0 0 0 / 0.58), inset 0 1px 0 rgb(255 255 255 / 0.08);
+    --landing-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.065), 0 24px 70px rgb(0 0 0 / 0.45);
+    --landing-hero-shadow: 0 34px 120px rgb(0 0 0 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.08);
     background: var(--landing-bg);
     color: var(--landing-body);
   }
 
   @media (prefers-color-scheme: light) {
     .landing-theme {
-      --landing-bg: #f7f4ee;
-      --landing-bg-alt: #eee9df;
-      --landing-card: #fffaf2;
-      --landing-field: #fffdf8;
-      --landing-text: #111111;
-      --landing-body: #3f3c37;
-      --landing-muted: #6f6a61;
-      --landing-faint: #8a8378;
-      --landing-chip: rgb(17 17 17 / 0.055);
-      --landing-button: #111111;
+      --landing-bg: #f5f7f9;
+      --landing-bg-alt: #eef1f4;
+      --landing-card: #ffffff;
+      --landing-field: #fafbfc;
+      --landing-text: #0a0a0a;
+      --landing-body: #3a4046;
+      --landing-muted: #666d75;
+      --landing-faint: #8a9198;
+      --landing-chip: rgb(10 10 10 / 0.055);
+      --landing-button: #0a0a0a;
       --landing-button-text: #ffffff;
-      --landing-button-hover: #2a2a2a;
-      --landing-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.85), 0 24px 70px rgb(40 32 20 / 0.08);
-      --landing-hero-shadow: 0 34px 120px rgb(40 32 20 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.9);
+      --landing-button-hover: #1f1f1f;
+      --landing-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 24px 70px rgb(30 40 50 / 0.07);
+      --landing-hero-shadow: 0 34px 120px rgb(30 40 50 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.95);
     }
+  }
+
+  /* Homepage landing is always light, regardless of system preference. */
+  .landing-theme-light {
+    --landing-bg: #f5f7f9;
+    --landing-bg-alt: #eef1f4;
+    --landing-card: #ffffff;
+    --landing-field: #fafbfc;
+    --landing-text: #0a0a0a;
+    --landing-body: #3a4046;
+    --landing-muted: #666d75;
+    --landing-faint: #8a9198;
+    --landing-chip: rgb(10 10 10 / 0.055);
+    --landing-button: #0a0a0a;
+    --landing-button-text: #ffffff;
+    --landing-button-hover: #1f1f1f;
+    --landing-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 24px 70px rgb(30 40 50 / 0.07);
+    --landing-hero-shadow: 0 34px 120px rgb(30 40 50 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.95);
+  }
+
+  .landing-theme-light .landing-model-logo {
+    filter: none;
+    opacity: 0.55;
+  }
+
+  /* Brand logo is black; invert it (white) on dark themes. */
+  .brand-logo {
+    filter: invert(1);
+  }
+  @media (prefers-color-scheme: light) {
+    .brand-logo {
+      filter: invert(0);
+    }
+  }
+  .landing-theme-light .brand-logo {
+    filter: invert(0);
   }
 
   .landing-model-logo {

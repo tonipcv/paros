@@ -2,175 +2,177 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod/v4";
+import { pathToFileURL } from "node:url";
 
-const DEFAULT_API_KEY = process.env.NOTOPEN_API_KEY || "";
-const DEFAULT_BASE_URL = process.env.NOTOPEN_BASE_URL || "http://localhost:3012";
+const REQUEST_TIMEOUT_MS = 60_000;
 
-function apiKey(): string {
-  if (!DEFAULT_API_KEY) throw new Error("NOTOPEN_API_KEY environment variable is required");
-  return DEFAULT_API_KEY;
+const apiErrorSchema = z.object({ error: z.union([z.string(), z.object({ message: z.string() }).passthrough()]).optional() }).passthrough();
+const modelsSchema = z.object({
+  data: z.array(z.object({
+    id: z.string(),
+    owned_by: z.string().optional(),
+    name: z.string().optional(),
+    context_window: z.union([z.string(), z.number()]).optional(),
+    capabilities: z.object({ vision: z.boolean().optional(), reasoning: z.boolean().optional(), uncensored: z.boolean().optional() }).optional(),
+    credits_per_request: z.number().optional(),
+  }).passthrough()),
+});
+const chatSchema = z.object({ choices: z.array(z.object({ message: z.object({ content: z.string().nullable() }) })) });
+const imageSchema = z.object({ data: z.array(z.object({ url: z.string().url() })).min(1) });
+
+function validateConfig(apiKey: string, baseUrl: string) {
+  if (!apiKey) throw new Error("KRX_API_KEY environment variable is required");
+  const url = new URL(baseUrl);
+  if (!['http:', 'https:'].includes(url.protocol)) throw new Error("KRX_BASE_URL must be an HTTP(S) URL");
 }
 
-function baseUrl(): string {
-  return DEFAULT_BASE_URL.replace(/\/$/, "");
+function createApi(apiKey: string, baseUrl: string) {
+  return async (path: string, init: RequestInit = {}): Promise<Response> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers: { Authorization: `Bearer ${apiKey}`, ...init.headers },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const raw = await response.text().catch(() => "");
+      let message = raw || `HTTP ${response.status}`;
+      try {
+        const parsed = apiErrorSchema.parse(JSON.parse(raw));
+        if (typeof parsed.error === "string") message = parsed.error;
+        else if (parsed.error?.message) message = parsed.error.message;
+      } catch { /* preserve the safe raw response */ }
+      throw new Error(`${response.status}: ${message.slice(0, 500)}`);
+    }
+    return response;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw new Error("The KRX API request timed out");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+  };
 }
 
-const requestSchema = z.object({
-  query: z.string().describe("The search query"),
-});
+function toolError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Unknown error";
+  return { isError: true, content: [{ type: "text" as const, text: `KRX API error: ${message}` }] };
+}
 
-const transcribeSchema = z.object({
-  text: z.string().describe("Text to synthesize as speech"),
-  voice: z.string().optional().describe("Voice to use (alloy, echo, fable, onyx, nova, shimmer)"),
-});
+export function createKRXMcpServer(options: { apiKey: string; baseUrl: string }) {
+  const apiKey = options.apiKey.trim();
+  const baseUrl = options.baseUrl.replace(/\/$/, "");
+  validateConfig(apiKey, baseUrl);
+  const api = createApi(apiKey, baseUrl);
+  const server = new McpServer({ name: "krx", version: "1.1.0" });
 
-async function main() {
-  const server = new McpServer({
-    name: "notopen",
-    version: "1.0.0",
-  });
-
-  const listModels = server.registerTool(
+  server.registerTool(
     "list_models",
     {
       title: "List available AI models",
-      description:
-        "List all available AI models on the NotOpen platform, including their capabilities (reasoning, vision, uncensored) and credit costs.",
+      description: "List KRX chat models with capabilities and credit cost.",
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async () => {
       try {
-        const res = await fetch(`${baseUrl()}/api/v1/models`, {
-          headers: { Authorization: `Bearer ${apiKey()}` },
+        const data = modelsSchema.parse(await (await api("/api/v1/models")).json());
+        const rows = data.data.map((model) => {
+          const capabilities = Object.entries(model.capabilities || {}).filter(([, enabled]) => enabled).map(([name]) => name).join(", ");
+          const details = [model.owned_by, capabilities, model.context_window ? `context ${model.context_window}` : "", model.credits_per_request != null ? `${model.credits_per_request} credits/request` : ""].filter(Boolean).join("; ");
+          return `- ${model.id}${model.name ? ` — ${model.name}` : ""}${details ? ` (${details})` : ""}`;
         });
-        if (!res.ok) throw new Error(await res.text());
-        const data = (await res.json()) as any;
-        const models =
-          data?.data?.map((m: any) => `- ${m.id}${m.owned_by ? ` (${m.owned_by})` : ""}`).join("\n") ||
-          "No models found";
-        return { content: [{ type: "text" as const, text: `Available models:\n\n${models}` }] };
-      } catch (e: any) {
-        return { content: [{ type: "text" as const, text: `Error: ${e.message}` }] };
-      }
+        return { content: [{ type: "text" as const, text: `Available models:\n\n${rows.join("\n") || "No models found"}` }] };
+      } catch (error) { return toolError(error); }
     }
   );
 
-  const chat = server.registerTool(
+  server.registerTool(
     "chat",
     {
       title: "Send a chat message",
-      description:
-        "Send a message to an AI model. Specify the model ID from the list_models tool. Use for text generation, coding, analysis, and general conversation. Maximize privacy and creative freedom.",
+      description: "Generate a response using a KRX model. This operation consumes credits.",
       inputSchema: {
-        model: z.string().describe("Model ID to use (see list_models)"),
-        prompt: z.string().describe("Your message or question"),
-        system: z.string().optional().describe("System prompt (leave empty for uncensored raw mode)"),
-        temperature: z.number().optional().describe("Temperature (0-2)"),
+        model: z.string().min(1).describe("Exact model ID returned by list_models"),
+        prompt: z.string().min(1).max(200_000).describe("User message"),
+        system: z.string().max(50_000).optional().describe("Optional system instruction"),
+        temperature: z.number().min(0).max(2).optional(),
       },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async (args) => {
       try {
-        const messages = [];
+        const messages: Array<{ role: "system" | "user"; content: string }> = [];
         if (args.system) messages.push({ role: "system", content: args.system });
         messages.push({ role: "user", content: args.prompt });
-        const res = await fetch(`${baseUrl()}/api/v1/chat/completions`, {
+        const response = await api("/api/v1/chat/completions", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: args.model,
-            messages,
-            temperature: args.temperature,
-            stream: false,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: args.model, messages, temperature: args.temperature, stream: false }),
         });
-        if (!res.ok) throw new Error(await res.text());
-        const data = (await res.json()) as any;
-        const reply = data?.choices?.[0]?.message?.content || "No response";
-        return { content: [{ type: "text" as const, text: reply }] };
-      } catch (e: any) {
-        return { content: [{ type: "text" as const, text: `Error: ${e.message}` }] };
-      }
+        const data = chatSchema.parse(await response.json());
+        return { content: [{ type: "text" as const, text: data.choices[0]?.message.content || "The model returned an empty response." }] };
+      } catch (error) { return toolError(error); }
     }
   );
 
-  const generateImage = server.registerTool(
+  server.registerTool(
     "generate_image",
     {
       title: "Generate an image",
-      description:
-        "Generate an image from a text prompt. Use for creating visuals, illustrations, concept art, and designs. Supports multiple styles.",
-      inputSchema: {
-        prompt: z.string().describe("Description of the image to generate"),
-        style: z.string().optional().describe("Image style (photorealistic, cinematic, anime, digital-art, 3d-render, watercolor, neon, minimal)"),
-      },
+      description: "Generate an image and return its hosted URL. This operation consumes credits.",
+      inputSchema: { prompt: z.string().min(1).max(8000), model: z.string().optional().describe("Optional image model ID") },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async (args) => {
       try {
-        const res = await fetch(`${baseUrl()}/api/v1/images/generations`, {
+        const response = await api("/api/v1/images/generations", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt: args.prompt,
-            style: args.style || "none",
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: args.prompt, ...(args.model ? { model: args.model } : {}) }),
         });
-        if (!res.ok) throw new Error(await res.text());
-        const data = (await res.json()) as any;
-        const url = data?.data?.[0]?.url || data?.image?.url || "No image URL returned";
-        return { content: [{ type: "text" as const, text: `Generated image: ${url}` }] };
-      } catch (e: any) {
-        return { content: [{ type: "text" as const, text: `Error: ${e.message}` }] };
-      }
+        const data = imageSchema.parse(await response.json());
+        return { content: [{ type: "text" as const, text: `Generated image: ${data.data[0].url}` }] };
+      } catch (error) { return toolError(error); }
     }
   );
 
-  const synthesize = server.registerTool(
+  server.registerTool(
     "synthesize",
     {
       title: "Text to speech",
-      description: "Convert text to spoken audio. Returns an MP3 audio file URL.",
-      inputSchema: {
-        text: z.string().describe("Text to convert to speech"),
-        voice: z.string().optional().describe("Voice: alloy, echo, fable, onyx, nova, shimmer"),
-      },
+      description: "Convert text to MP3 audio. This operation consumes credits.",
+      inputSchema: { text: z.string().min(1).max(4000), voice: z.enum(["alloy", "echo", "fable", "onyx", "nova", "shimmer"]).optional() },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async (args) => {
       try {
-        const res = await fetch(`${baseUrl()}/api/tts`, {
+        const response = await api("/api/v1/audio/speech", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ text: args.text.slice(0, 4000), voice: args.voice || "alloy" }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input: args.text, voice: args.voice || "alloy" }),
         });
-        if (!res.ok) throw new Error(await res.text());
-        const blob = await res.blob();
-        const base64 = Buffer.from(await blob.arrayBuffer()).toString("base64");
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Audio generated successfully (${blob.size} bytes). Format: audio/mpeg. Base64: ${base64.slice(0, 200)}...`,
-            },
-          ],
-        };
-      } catch (e: any) {
-        return { content: [{ type: "text" as const, text: `Error: ${e.message}` }] };
-      }
+        const data = Buffer.from(await response.arrayBuffer()).toString("base64");
+        return { content: [{ type: "audio" as const, data, mimeType: "audio/mpeg" }] };
+      } catch (error) { return toolError(error); }
     }
   );
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  return server;
 }
 
-main().catch((e) => {
-  console.error("MCP server failed:", e);
-  process.exit(1);
-});
+async function main() {
+  const server = createKRXMcpServer({
+    apiKey: process.env.KRX_API_KEY || "",
+    baseUrl: process.env.KRX_BASE_URL || "http://localhost:3012",
+  });
+  await server.connect(new StdioServerTransport());
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(`MCP server failed: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  });
+}

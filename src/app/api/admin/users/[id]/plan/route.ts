@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { error, json } from "@/lib/http";
 import { findPlan, PLANS } from "@/lib/models";
+import { grantCredits } from "@/lib/credit-grants";
 import { logAdminAction } from "@/lib/admin-audit";
 
 export const runtime = "nodejs";
@@ -26,23 +27,32 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const plan = findPlan(planId);
     const previous = user.workspace.plan;
-    const grantCredits = body.grantCredits !== false && planId !== "FREE";
-    const newCredits = grantCredits ? user.workspace.credits + (plan?.credits ?? 0) : user.workspace.credits;
+    const shouldGrant = body.grantCredits !== false && planId !== "FREE";
 
     // Use raw SQL to bypass Prisma enum strictness on the plan column.
-    if (grantCredits) {
-      await prisma.$executeRaw`UPDATE "workspaces" SET "plan" = ${planId}::"Plan", "credits" = ${newCredits} WHERE "id" = ${user.workspace.id}`;
-    } else {
-      await prisma.$executeRaw`UPDATE "workspaces" SET "plan" = ${planId}::"Plan" WHERE "id" = ${user.workspace.id}`;
+    await prisma.$executeRaw`UPDATE "workspaces" SET "plan" = ${planId}::"Plan" WHERE "id" = ${user.workspace.id}`;
+
+    // Credits go through a real CreditGrant so they are tracked, capped and
+    // expire like every other grant — never an untracked flat increment.
+    let creditsGranted = 0;
+    if (shouldGrant) {
+      const { creditsAdded } = await grantCredits({
+        workspaceId: user.workspace.id,
+        source: "ADMIN",
+        credits: plan?.credits ?? 0,
+        monthlyAllowance: plan?.credits ?? 0,
+        metadata: { actor: admin.email, previousPlan: previous, plan: planId },
+      });
+      creditsGranted = creditsAdded;
     }
 
     await logAdminAction(
       { id: admin.id, email: admin.email },
       "change_plan",
       { userId: user.id, email: user.email },
-      `${previous} → ${planId}` + (grantCredits ? ` (credits now ${newCredits})` : "")
+      `${previous} → ${planId}` + (creditsGranted > 0 ? ` (credits +${creditsGranted})` : "")
     ).catch((e) => console.error("audit log failed:", e));
-    return json({ ok: true, email: user.email, previous, plan: planId });
+    return json({ ok: true, email: user.email, previous, plan: planId, creditsGranted });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Failed";
     if (message === "Forbidden") return error("Forbidden", 403);

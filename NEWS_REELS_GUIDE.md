@@ -42,81 +42,164 @@
 
 ---
 
-## 2. Reels Video
+## 2. Reels Video — FORMATO PADRÃO (v8+)
 
-### Ferramentas
-- **Python + gTTS + FFmpeg (sem moviepy)** — usar gTTS com `tld="co.uk"` para voz britânica
-- ElevenLabs como primeira opção (Daniel - `onwK4e9ZLuTAKqWW03F9`), gTTS como fallback quando sem créditos
-- Fonte: `/tmp/Inter-SemiBold.ttf` (baixar do Google Fonts via CSS API)
-
-### Imagens — REGRAS ABSOLUTAS (NUNCA QUEBRAR)
-- **CADA imagem deve corresponder EXATAMENTE ao texto falado no segmento**
-- NUNCA usar foto de pessoa A MENOS que o texto do segmento mencione aquela pessoa específica
-- NUNCA reutilizar imagens de vídeos anteriores — sempre baixar imagem NOVA
-- **Nomes de arquivo SEMPRE NOVOS e DIFERENTES** a cada vídeo (prefixo alfabético diferente: g, k, m, n, o...)
-- **A primeira imagem NUNCA pode ser de pessoa** (a menos que a primeira frase fale dela)
-- **NENHUMA imagem pode ser igual a outra no mesmo vídeo** (verificar MD5 hash das imagens)
-- NUNCA usar print/mockup de artigo — usar imagens reais de hacker, código, segurança
-- Temas corretos: hacker, segurança, dados, código, servidor, alerta, conforme o texto
-- NUNCA usar: fotos abstratas, imagens vazias, computadores genéricos, fotos de pessoas aleatórias
-- Download do Unsplash com crop vertical: `?w=1080&h=1920&fit=crop&q=85`
-- Tirar EXIF com Pillow sempre
-
-### Layout do Frame (1080×1920)
-1. **Linha vermelha**: `drawbox x=380 y=240 w=320 h=4 color=#b42828`
-2. **Headline fixa**: topo, `fontsize=22 color=#c0c0c0 y=270` (textfile sempre)
-3. **Display text**: centro, `fontsize=36 color=#f0ece0 y=(h-text_h)/2-40` (NUNCA maior que 36px)
-4. **Rodapé fonte**: `fontsize=16 color=#888888 y=1760` (textfile sempre)
-
-### Efeitos (FFmpeg filter chain - nesta ordem)
-1. `colorchannelmixer=rr=0.7:gg=0.18:bb=0.15` (tom vermelho escuro)
-2. `noise=alls=10:allf=t` (grunge/grain)
-3. `vignette=eval=frame` (vinheta escura)
-4. `drawbox` (linha vermelha)
-5. `drawtext` (headline fixa — textfile)
-6. `drawtext` (display text — textfile)
-7. `drawtext` (rodapé fonte — textfile)
-
-### Geração
-- Voice ElevenLabs: `stability=0.40 similarity_boost=0.80 style=0.20 use_speaker_boost=True`
-- Fallback gTTS: `gTTS(text=narration, lang="en", tld="co.uk", slow=False)`
-- Velocidade: `atempo=1.3` no FFmpeg
-- Cada segmento gera `.mp4` com FFmpeg: `-loop 1 -i imagem -i audio -filter_complex ... -shortest`
-- Concatena com `ffmpeg -f concat -safe 0 -i concat.txt -c copy out.mp4`
-- Codec: `libx264 -preset medium -crf 20`, áudio: `aac 128k`
-
-### Estrutura do Script Python
-```python
-SEGMENTS = [
-    ("Display short", "Full narration sentence that voice reads."),
-    ...
-]
-IMAGES = [f"/tmp/letra{i}.jpg" for i in range(1, 17)]  # letra SEMPRE nova
+### Visão Geral do Fluxo
+```
+1. Definir 10 segmentos (imagem + narração)
+2. Baixar/cropar imagens para 1080×1920
+3. Gerar 1 áudio ÚNICO contínuo (Fish Audio, 1 chamada só)
+4. Gerar 10 vídeos SEM áudio (video-only) com efeitos + headline
+5. Concatenar vídeos
+6. Adicionar áudio único ao vídeo final
+7. Gerar thumbnail
 ```
 
-### Regras de Texto (CRÍTICO — NUNCA QUEBRAR)
-- **Display text** (na tela) = 2-3 PALAVRAS NO MÁXIMO
-- **Narration** (voz) = frase completa com informação
-- display_text salvo no `textfile` para drawtext, narration enviado para TTS
-- Fontsize display text: NO MÁXIMO 36px (nunca 42+)
-- Rodapé da fonte: NO MÁXIMO y=1760, fontsize 16
-- Headline fixa: NO MÁXIMO fontsize=22, y=270
-- Usar SEMPRE `textfile=` para TODOS os textos (headline, display, rodapé)
-- NUNCA usar `text=` direto — sempre arquivo .txt
-- Characteres proibidos no `text=` direto: `:`, `,`, `'`, `"`, `|`, `—`
-- Rodapé: usar `-` simples, nunca `—` ou `|`
+### Ferramentas
+- **Python + FFmpeg (sem moviepy)**
+- **Fish Audio** (voz principal): API key `2decb955bc8b492ea5b94d75cee5d2e0`, modelo `s2.1-pro-free`, endpoint `https://api.fish.audio/v1/tts`
+  - **Inglês (britânico):** `reference_id: "e5f3047b09ab468da84ca21e3f511680"` ("british male calm voice")
+  - **Português (brasileiro):** **sem** `reference_id` (usa voz padrão do modelo)
+- **Fonte:** `/tmp/Inter-SemiBold.ttf` (baixar do Google Fonts via CSS API)
+- **Script de thumbnail:** `/tmp/create_thumbnail.py`
+
+### Layout do Frame (1080×1920) — Forbes-style
+```
+1. drawbox x=140 y=280 w=300 h=3 color=#b42828       (linha vermelha, 60px acima da headline)
+2. drawtext textfile=hl_0.txt fontsize=32 color=#f0ece0 x=140 y=340   (headline linha 1)
+3. drawtext textfile=hl_1.txt fontsize=32 color=#f0ece0 x=140 y=384   (headline linha 2)
+4. drawtext textfile=hl_2.txt fontsize=32 color=#f0ece0 x=140 y=428   (headline linha 3)
+5. drawtext textfile=source.txt fontsize=15 color=#888888 x=centro y=1780  (rodapé)
+```
+
+**Regras:**
+- Headline: 3 linhas MÁX, lado esquerdo `x=140`, `fontsize=32`, `line_height=44`
+- **NUNCA** usar display text central
+- Headline usa `textfile=` (arquivo .txt), nunca `text='...'` inline (evita problemas com caracteres especiais)
+- Rodapé: `y=1780`, `fontsize=15`
+
+### Efeitos (FFmpeg filter chain — nesta ordem)
+```
+colorchannelmixer=rr=0.7:gg=0.18:bb=0.15,noise=alls=10:allf=t,vignette=eval=frame
+```
+
+### PASSOS DETALHADOS
+
+#### Passo 1: Definir Segmentos
+```python
+SEGMENTS = [
+    ("BREAKING", "Hugging Face used a Chinese AI model to defend against the OpenAI hack.", "img1.jpg"),
+    ("OPENAI HACK", "Attackers breached OpenAI exposing millions of users.", "img2.jpg"),
+    ... 10 segmentos no total
+]
+```
+- Cada segmento: (título_ref, narração, imagem)
+- Narração: ~10-12 palavras, ~3-4s de fala cada
+- Imagens: baixadas e salvas em `/tmp/hf_reel/`
+- A primeira imagem aparece APENAS no primeiro segmento
+
+#### Passo 2: Headline Forbes-style
+```python
+headline_lines = [
+    "HUGGING FACE FORCED TO USE CHINESE AI",
+    "AFTER US MODELS REFUSED HELP IN",
+    "OPENAI HACK INVESTIGATION"
+]
+```
+- Escrever cada linha em `hl_0.txt`, `hl_1.txt`, `hl_2.txt`
+- Usar `textfile=` (NUNCA inline) para evitar erros com `:` e `'`
+
+#### Passo 3: Preparar Imagens
+```python
+for i, (_, _, img_name) in enumerate(SEGMENTS):
+    img = Image.open(img_name).convert("RGB")
+    ratio = max(1080/img.width, 1920/img.height)
+    img = img.resize((int(img.width*ratio), int(img.height*ratio)), Image.LANCZOS)
+    left, top = (new_w - 1080)//2, (new_h - 1920)//2
+    img = img.crop((left, top, left+1080, top+1920))
+    img.save(f"frame_{i:02d}.jpg", "JPEG", quality=92, exif=b"")
+```
+- Crop center para 1080×1920
+- Sempre remover EXIF
+
+#### Passo 4: Gerar Áudio ÚNICO
+```python
+FULL_NARRATION = " ".join(s[1] for s in SEGMENTS)
+
+# Inglês (britânico):
+body = {"text": FULL_NARRATION, "reference_id": "e5f3047b09ab468da84ca21e3f511680", "format": "mp3"}
+
+# Português (brasileiro):
+body = {"text": FULL_NARRATION, "format": "mp3"}  # sem reference_id
+
+# Chamada Fish Audio:
+POST https://api.fish.audio/v1/tts
+Headers: Authorization: Bearer 2decb955bc8b492ea5b94d75cee5d2e0
+         Content-Type: application/json
+         model: s2.1-pro-free
+Body: JSON acima
+Response: MP3 binário (salvar direto)
+```
+- **SEMPRE 1 chamada só** — voz contínua e consistente
+
+#### Passo 5: Gerar Segmentos (video-only)
+```bash
+ffmpeg -y -loop 1 -i frame_{i}.jpg \
+  -vf "colorchannelmixer=rr=0.7:gg=0.18:bb=0.15,\
+       noise=alls=10:allf=t,\
+       vignette=eval=frame,\
+       drawbox=x=140:y=280:w=300:h=3:color=#b42828,\
+       drawtext=textfile=hl_0.txt:fontfile=Inter-SemiBold.ttf:fontsize=32:fontcolor=#f0ece0:x=140:y=340,\
+       drawtext=textfile=hl_1.txt:fontfile=Inter-SemiBold.ttf:fontsize=32:fontcolor=#f0ece0:x=140:y=384,\
+       drawtext=textfile=hl_2.txt:fontfile=Inter-SemiBold.ttf:fontsize=32:fontcolor=#f0ece0:x=140:y=428,\
+       drawtext=textfile=source.txt:fontfile=Inter-SemiBold.ttf:fontsize=15:fontcolor=#888888:x=(w-text_w)/2:y=1780" \
+  -an -c:v libx264 -preset medium -crf 20 -t 4 -pix_fmt yuv420p seg_{i}.mp4
+```
+- `-an` = sem áudio
+- `-t 4` = 4 segundos por segmento (10 × 4s = 40s)
+
+#### Passo 6: Concatenar Vídeos
+```bash
+# Criar concat.txt com:
+# file '/tmp/hf_reel/seg_00.mp4'
+# file '/tmp/hf_reel/seg_01.mp4'
+# ... até seg_09.mp4
+
+ffmpeg -y -f concat -safe 0 -i concat.txt -c copy video_only.mp4
+```
+
+#### Passo 7: Adicionar Áudio
+```bash
+ffmpeg -y -i video_only.mp4 -i audio.mp3 \
+  -c:v copy -c:a aac -b:a 192k \
+  -map 0:v:0 -map 1:a:0 \
+  -t 40 final.mp4
+```
+- `-t 40` garante exatamente 40s
+
+### Thumbnail
+```bash
+python3 /tmp/create_thumbnail.py
+```
+Script configurado com foto + texto. Parâmetros fixos:
+- Tamanho: 1080×1920
+- Efeitos: colorchannelmixer (0.7, 0.18, 0.15) + noise 18 + vignette
+- Texto centralizado, cor `#f0ece0`, fontsize 38, Inter SemiBold
+- Máx 860px de largura
+- Sem branding, sem data, sem fonte
+- Nome: `public/images/thumbs/[tema]-thumb.jpg`
 
 ### Regras Gerais
-- **16 segmentos** (16 imagens, 16 display texts, 16 narrações)
-- Headline fixa igual para todos os segmentos
-- Muitas mudanças rápidas = vídeo mais dinâmico
+- **10 segmentos** × 4s = **40s** de vídeo
+- Headline Forbes-style fixa (3 linhas, esquerda) — igual em TODOS os segmentos
+- **NUNCA** repetir a primeira imagem nos outros segmentos
+- **NUNCA** usar display text central
 - Sem zoom/Ken Burns
 - Sem fundo preto no rodapé
-- Fonte Inter SemiBold em TUDO (mesma fonte, sem variar)
-- Voz britânica sempre
-- **Tudo em INGLÊS** — blog, display_text, narration, headline
-- **NUNCA português em nada**
+- Fonte Inter SemiBold em TUDO
+- Áudio: **1 chamada Fish Audio** (nunca 1 por segmento)
 - Blog + Reels sempre feitos juntos para a mesma notícia
+- **Blog em INGLÊS** | Reel pode ser EN ou PT
 
 ---
 

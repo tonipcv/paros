@@ -103,7 +103,7 @@ test("checkout validates plans server-side and stores selected price id metadata
   const checkout = read("src/app/api/stripe/checkout/route.ts");
   assert.ok(checkout.includes("PLANS.find"));
   assert.ok(checkout.includes("priceId"));
-  assert.ok(checkout.includes("metadata: { workspaceId: ws.id, plan: plan.id, billingCycle: parsed.billingCycle, priceId }"));
+  assert.ok(checkout.includes("metadata: { workspaceId: ws.id, plan: plan.id, billingCycle: parsed.billingCycle, priceId"));
   assert.ok(!checkout.includes("body.price"));
 });
 

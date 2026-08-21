@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 
-const brandName = "NotOpen";
+const brandName = "KRX";
 
 export const metadata: Metadata = {
  title: "When AI Trust Breaks: The ChatGPT Data Leakage Flaw That Redefined AI Vendor Security",

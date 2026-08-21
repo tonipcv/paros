@@ -1,4 +1,4 @@
-import { requireUser, generateApiKey } from "@/lib/auth";
+import { requireUser, generateApiKey, emailVerifiedOrGuest } from "@/lib/auth";
 import { getWorkspaceForUser } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { error, json, handleRouteError } from "@/lib/http";
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const ws = await getWorkspaceForUser(user.id);
     if (!ws) return error("Workspace not found", 404);
+    if (!emailVerifiedOrGuest(user)) return error("Email verification required", 403);
     const body = await request.json().catch(() => ({}));
     const name = String(body.name || "API Key").slice(0, 40);
     const { key, prefix, hash } = generateApiKey();

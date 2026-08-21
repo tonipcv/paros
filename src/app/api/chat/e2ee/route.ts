@@ -1,9 +1,10 @@
-import { requireUser } from "@/lib/auth";
+import { requireUser, emailVerifiedOrGuest } from "@/lib/auth";
 import { getWorkspaceForUser, reserveCredits, refundCredits, recordUsage } from "@/lib/account";
 import { error, json, handleRouteError } from "@/lib/http";
 import { verifyTeeAttestation } from "@/lib/attestation";
 import { endpoints } from "@/lib/privacy-router";
 import { findChatModel } from "@/lib/models";
+import { createUnpricedShadowReservation, markBillingSent, releaseBillingReservation, requireBillingReconciliation } from "@/lib/billing-engine";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     const user = await requireUser();
     const ws = await getWorkspaceForUser(user.id);
     if (!ws) return error("Workspace not found", 404);
+    if (!emailVerifiedOrGuest(user)) return error("Email verification required", 403);
 
     const raw = await request.text();
     if (raw.length > MAX_BODY_BYTES) return error("Request body too large", 413);
@@ -61,7 +63,12 @@ export async function POST(request: Request) {
     const maxTokens = typeof body.max_tokens === "number" && body.max_tokens > 0 ? Math.min(body.max_tokens, 8192) : 2048;
 
     if (!(await reserveCredits(ws.id, creditModel.credits))) return error("Insufficient credits", 402);
+    const shadow = await createUnpricedShadowReservation({
+      workspaceId: ws.id, provider: "e2ee", model: teeModel, modality: "TEXT",
+      estimatedCostMicros: 100_000n, surface: "app-e2ee", legacyCreditsCharged: creditModel.credits,
+    }).catch(() => null);
     try {
+      if (shadow) await markBillingSent(shadow.id).catch(() => undefined);
       const upstream = await fetch(`${ep.baseUrl.replace(/\/$/, "")}/chat/completions`, {
         method: "POST",
         headers: {
@@ -75,9 +82,11 @@ export async function POST(request: Request) {
         const detail = await upstream.text().catch(() => "");
         console.error("E2EE enclave error", upstream.status, detail.slice(0, 300));
         await refundCredits(ws.id, creditModel.credits).catch((e) => console.error("refundCredits failed:", e));
+        if (shadow) await releaseBillingReservation(shadow.id, true).catch(() => undefined);
         return error(`Enclave error (${upstream.status})`, 502);
       }
       await recordUsage(ws.id, "chat-e2ee", creditModel.id, creditModel.credits).catch((e) => console.error("recordUsage failed:", e));
+      if (shadow) await requireBillingReconciliation(shadow.id, upstream.headers.get("x-request-id") || undefined).catch(() => undefined);
       // Relay the still-encrypted SSE stream verbatim; the client decrypts each delta.
       return new Response(upstream.body, {
         status: 200,
@@ -89,6 +98,7 @@ export async function POST(request: Request) {
       });
     } catch (e) {
       await refundCredits(ws.id, creditModel.credits).catch((refundErr) => console.error("refundCredits failed:", refundErr));
+      if (shadow) await releaseBillingReservation(shadow.id, true).catch(() => undefined);
       throw e;
     }
   } catch (e) {

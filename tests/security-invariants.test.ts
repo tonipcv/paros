@@ -188,4 +188,78 @@ test("middleware does not duplicate the Permissions-Policy header", () => {
   assert.match(read("next.config.ts"), /Permissions-Policy/);
 });
 
+test("session tokens are stored hashed, never in plaintext", () => {
+  const auth = read("src/lib/auth.ts");
+  assert.match(auth, /data:\s*\{ token: hashToken\(token\)/);
+  assert.match(auth, /where:\s*\{ token: hashToken\(token\) \}/);
+});
+
+test("credit-consuming routes enforce email verification server-side", () => {
+  for (const p of [
+    "src/app/api/chat/route.ts",
+    "src/app/api/chat/e2ee/route.ts",
+    "src/app/api/images/route.ts",
+    "src/app/api/stt/route.ts",
+    "src/app/api/tts/route.ts",
+    "src/app/api/keys/route.ts",
+  ]) {
+    const src = read(p);
+    assert.match(src, /emailVerifiedOrGuest/, `${p} must enforce verified email`);
+    assert.match(src, /403/, `${p} must return 403 when unverified`);
+  }
+});
+
+test("shared rate limiter fails closed and IP trust requires Cloudflare proof", () => {
+  const src = read("src/lib/rate-limit.ts");
+  assert.match(src, /failing closed/);
+  assert.match(src, /return \{ ok: false, retryAfter: windowSec \}/);
+  assert.match(src, /cf-ray/);
+  assert.match(src, /if \(cfRay && cf\) return cf;/);
+});
+
+test("Turnstile fails closed in production when the secret is missing", () => {
+  const src = read("src/lib/turnstile.ts");
+  assert.match(src, /NODE_ENV === "production"/);
+  assert.match(src, /Security configuration error/);
+  assert.match(src, /clientIp\(request\)/);
+});
+
+test("TEE attestation escape hatch is dev-only and measurement can be pinned", () => {
+  const src = read("src/lib/attestation.ts");
+  assert.match(src, /NODE_ENV !== "production" && process\.env\.TEE_ATTESTATION_DISABLED/);
+  assert.match(src, /TEE_MEASUREMENT_ALLOWLIST/);
+  assert.match(src, /not in the allowlist/);
+});
+
+test("billing reservations settle/release via an atomic claim (no double settle)", () => {
+  const src = read("src/lib/billing-engine.ts");
+  assert.match(src, /updateMany\(\{\s*where: \{ id, status: entry\.status \}/);
+  assert.match(src, /if \(!claim\.count\) return tx\.billingLedger\.findUnique/);
+});
+
+test("fal webhook treats CANCEL_REQUESTED as terminal", () => {
+  const src = read("src/lib/generation-jobs.ts");
+  assert.match(src, /CANCEL_REQUESTED/);
+  assert.match(src, /"SUCCEEDED", "FAILED", "CANCELED", "CANCEL_REQUESTED"/);
+});
+
+test("past_due subscriptions are throttled to the FREE tier", () => {
+  const src = read("src/app/api/stripe/webhook/route.ts");
+  assert.match(src, /subscription\.status === "past_due"/);
+  assert.match(src, /plan: "FREE", credits: target/);
+});
+
+test("admin plan changes grant tracked credits instead of flat increments", () => {
+  const src = read("src/app/api/admin/users/[id]/plan/route.ts");
+  assert.match(src, /grantCredits\(/);
+  assert.match(src, /source: "ADMIN"/);
+  assert.doesNotMatch(src, /credits" = \$\{newCredits\}/);
+});
+
+test("cleanup cron prunes stale rate-limit rows", () => {
+  const src = read("src/app/api/cron/cleanup-guests/route.ts");
+  assert.match(src, /prisma\.rateLimit\.deleteMany/);
+  assert.match(src, /updatedAt: \{ lt: rateLimitCutoff \}/);
+});
+
 console.log("all security invariants hold");

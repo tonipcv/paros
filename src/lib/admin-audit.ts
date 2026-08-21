@@ -1,6 +1,16 @@
 import { prisma } from "./prisma";
 
-type ActionType = "promote_user" | "set_credits" | "change_plan" | "health_check" | "test_email";
+type ActionType =
+  | "promote_user"
+  | "set_credits"
+  | "change_plan"
+  | "health_check"
+  | "test_email"
+  | "update_model"
+  | "update_model_route"
+  | "update_model_provider"
+  | "sync_model_catalog"
+  | "set_provider_access";
 
 export async function logAdminAction(
   admin: { id: string; email: string },

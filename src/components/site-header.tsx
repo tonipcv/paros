@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const brandName = "NotOpen";
+const brandName = "KRX";
 
 const navLinks = [
   { href: "/#privacy", label: "Privacy" },
@@ -40,7 +40,7 @@ export function SiteHeader() {
           <img
             src="/logo.png"
             alt={brandName}
-            className={`rounded-lg transition-all duration-300 ${scrolled ? "h-6 w-6" : "h-7 w-7"}`}
+            className={`brand-logo rounded-lg transition-all duration-300 ${scrolled ? "h-6 w-6" : "h-7 w-7"}`}
           />
           <span
             className={`font-display font-medium leading-none tracking-[0.01em] text-[var(--landing-text)] transition-all duration-300 ${

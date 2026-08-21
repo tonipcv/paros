@@ -119,7 +119,10 @@ async function main() {
   assert.ok(process.env.DATABASE_URL, "DATABASE_URL is required for local webhook e2e");
 
   const { PrismaClient } = await import("@prisma/client");
-  const prisma = new PrismaClient();
+  const { PrismaPg } = await import("@prisma/adapter-pg");
+  const prisma = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+  });
   const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-02-24.acacia" });
 
   const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;

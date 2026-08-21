@@ -60,8 +60,8 @@ export async function verifyTeeAttestation(mode: PrivacyMode): Promise<Attestati
   const cfg = modeConfig(mode);
   const provider = cfg.label;
 
-  if (process.env.TEE_ATTESTATION_DISABLED === "true") {
-    // Explicit, auditable escape hatch for local dev only.
+  if (process.env.NODE_ENV !== "production" && process.env.TEE_ATTESTATION_DISABLED === "true") {
+    // Explicit, auditable escape hatch for local dev only. Never honored in production.
     return {
       verified: true,
       provider,
@@ -124,16 +124,26 @@ export async function verifyTeeAttestation(mode: PrivacyMode): Promise<Attestati
           result = fail(provider, (verify?.reason as string) || `Quote verification failed (${verifyRes.status})`);
         } else {
           const verifiedQuote = verify?.quote as { body?: Record<string, unknown> } | undefined;
-          result = {
-            verified: true,
-            provider,
-            enclavePublicKey,
-            measurement: (verifiedQuote?.body?.mrtd ||
-              verify?.mrtd ||
-              verify?.mr_enclave ||
-              report?.measurement) as string | undefined,
-            verifiedAt: now,
-          };
+          const measurement = (verifiedQuote?.body?.mrtd ||
+            verifiedQuote?.body?.mr_enclave ||
+            verify?.mrtd ||
+            verify?.mr_enclave ||
+            report?.measurement) as string | undefined;
+          // Identity pinning: when TEE_MEASUREMENT_ALLOWLIST is configured the
+          // enclave measurement must match one of the entries, otherwise the
+          // quote is rejected. Without it, any genuine TDX/SGX enclave passes.
+          const allowlist = (process.env.TEE_MEASUREMENT_ALLOWLIST || "").split(",").map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+          if (allowlist.length > 0 && measurement && !allowlist.includes(measurement.toLowerCase())) {
+            result = fail(provider, "Enclave measurement is not in the allowlist");
+          } else {
+            result = {
+              verified: true,
+              provider,
+              enclavePublicKey,
+              measurement,
+              verifiedAt: now,
+            };
+          }
         }
       }
     }

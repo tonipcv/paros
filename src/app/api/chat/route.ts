@@ -1,14 +1,17 @@
-import { requireUser } from "@/lib/auth";
-import { getWorkspaceForUser, reserveCredits, refundCredits, acquireConcurrencySlot, releaseConcurrencySlot, reserveDailySpend, settleDailySpend, releaseDailySpend, getDailyChatCount, estimateTokens, createUsageEvent, recordUsageSettled, releaseUsageReservation, createInferenceAttempt, markAttemptSent, settleAttempt, markAttemptReconciliationRequired, markAttemptFailed } from "@/lib/account";
+import { requireUser, emailVerifiedOrGuest } from "@/lib/auth";
+import { getWorkspaceForUser, reserveCredits, refundCredits, acquireConcurrencySlot, releaseConcurrencySlot, reserveDailySpend, settleDailySpend, releaseDailySpend, getDailyChatCount, estimateTokens, createUsageEvent, recordUsageSettled, releaseUsageReservation, createInferenceAttempt, markAttemptSent, settleAttempt, markAttemptReconciliationRequired, markAttemptFailed, chargeCreditsAdditional } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { error } from "@/lib/http";
 import { streamChat, streamChatTo, hasOpenRouter, type ChatMessage, type ContentPart } from "@/lib/openrouter";
-import { findChatModel, CHAT_MODELS, getPlanLimits, type ChatModel } from "@/lib/models";
+import { findChatModel, CHAT_MODELS, getPlanLimits, parseTokenCount, type ChatModel } from "@/lib/models";
 import { type PrivacyMode, isTeeOrE2ee, hasTeeProvider, endpoints } from "@/lib/privacy-router";
 import { verifyTeeAttestation } from "@/lib/attestation";
 import { searchWeb, buildSearchContext } from "@/lib/web-search";
 import { detectPromptInjection } from "@/lib/prompt-injection";
 import { rateLimitShared } from "@/lib/rate-limit";
+import { estimateCatalogTextRequest } from "@/lib/billing-pricing";
+import { createBillingReservation, markBillingSent, releaseBillingReservation, requireBillingReconciliation, settleBillingReservation } from "@/lib/billing-engine";
+import { creditsForCost, creditsToReserve, usdToMicros } from "@/lib/unit-economics";
 
 export const runtime = "nodejs";
 export const maxDuration = 90;
@@ -31,14 +34,14 @@ function buildUserContent(text: string, images: string[], docContext: string): s
 }
 
 function contextTokens(m: ChatModel): number {
-  const c = parseInt(m.context) || 0;
-  return c > 0 ? c * 1024 : 128_000;
+  return parseTokenCount(m.context) || 128_000;
 }
 
 export async function POST(request: Request) {
   let user; try { user = await requireUser(); } catch { return error("Authentication required", 401); }
   const ws = await getWorkspaceForUser(user.id);
   if (!ws) return error("Workspace not found", 404);
+  if (!emailVerifiedOrGuest(user)) return error("Email verification required", 403);
 
   const limits = getPlanLimits(ws.plan);
   const estMicros = BigInt(Math.ceil(ESTIMATED_MAX_COST_USD * 1_000_000));
@@ -73,11 +76,6 @@ export async function POST(request: Request) {
   const totalInputChars = content.length + docChars;
   if (totalInputChars > limits.maxInputChars) { releaseDailySpend(ws.id, estMicros).catch(() => {}); releaseConcurrencySlot(ws.id, lease.slot, lease.requestId).catch(() => {}); return error(`Input too large. Maximum ${limits.maxInputChars.toLocaleString()} characters.`, 413); }
 
-  // 5. Token budget: validate against min(model context, fallback context)
-  const estimatedInput = estimateTokens(content + buildDocContext(documents));
-  const effectiveCtx = isTeeOrE2ee(privacyMode) ? contextTokens(model) : Math.min(contextTokens(model), contextTokens(fallbackModel));
-  if (estimatedInput + limits.maxOutputTokens > effectiveCtx) { releaseDailySpend(ws.id, estMicros).catch(() => {}); releaseConcurrencySlot(ws.id, lease.slot, lease.requestId).catch(() => {}); return error(`Token budget (${(estimatedInput + limits.maxOutputTokens).toLocaleString()}) exceeds effective context (${effectiveCtx.toLocaleString()}).`, 413); }
-
   if (ws.credits < model.credits) { releaseDailySpend(ws.id, estMicros).catch(() => {}); releaseConcurrencySlot(ws.id, lease.slot, lease.requestId).catch(() => {}); return error("Insufficient credits", 402); }
 
   if (isTeeOrE2ee(privacyMode)) {
@@ -86,11 +84,8 @@ export async function POST(request: Request) {
     if (!att.verified) { releaseDailySpend(ws.id, estMicros).catch(() => {}); releaseConcurrencySlot(ws.id, lease.slot, lease.requestId).catch(() => {}); return error(`TEE attestation not verified (${att.reason || "unverified"}).`, 502); }
   }
 
-  if (!(await reserveCredits(ws.id, model.credits))) { releaseDailySpend(ws.id, estMicros).catch(() => {}); releaseConcurrencySlot(ws.id, lease.slot, lease.requestId).catch(() => {}); return error("Insufficient credits", 402); }
-  let creditsHeld = model.credits;
-
-  let usageEventId: string;
-  try { usageEventId = await createUsageEvent(ws.id, "chat", model.id, model.credits); } catch { refundCredits(ws.id, creditsHeld).catch(() => {}); creditsHeld = 0; releaseDailySpend(ws.id, estMicros).catch(() => {}); releaseConcurrencySlot(ws.id, lease.slot, lease.requestId).catch(() => {}); return error("Failed to record usage", 500); }
+  let creditsHeld = 0;
+  let usageEventId = "";
 
   const cleanup = () => { releaseConcurrencySlot(ws.id, lease.slot, lease.requestId).catch(() => {}); };
 
@@ -105,9 +100,9 @@ export async function POST(request: Request) {
       systemPrompt = typeof body.systemPrompt === "string" && body.systemPrompt.trim() ? body.systemPrompt : null;
       if (typeof body.temperature === "number") temperature = body.temperature;
     } else {
-      if (!conversationId) { releaseUsageReservation(usageEventId).catch(() => {}); refundCredits(ws.id, creditsHeld).catch(() => {}); releaseDailySpend(ws.id, estMicros).catch(() => {}); cleanup(); return error("conversationId required"); }
+      if (!conversationId) { releaseDailySpend(ws.id, estMicros).catch(() => {}); cleanup(); return error("conversationId required"); }
       const conversation = await prisma.conversation.findFirst({ where: { id: conversationId, workspaceId: ws.id }, include: { messages: { orderBy: { createdAt: "asc" } }, character: true } });
-      if (!conversation) { releaseUsageReservation(usageEventId).catch(() => {}); refundCredits(ws.id, creditsHeld).catch(() => {}); releaseDailySpend(ws.id, estMicros).catch(() => {}); cleanup(); return error("Conversation not found", 404); }
+      if (!conversation) { releaseDailySpend(ws.id, estMicros).catch(() => {}); cleanup(); return error("Conversation not found", 404); }
       systemPrompt = conversation.character?.systemPrompt || conversation.systemPrompt || null;
       temperature = conversation.temperature ?? 0.7;
       priorMessages = conversation.messages.map((m) => ({ role: m.role, content: m.content }));
@@ -115,15 +110,27 @@ export async function POST(request: Request) {
       const firstUser = conversation.messages.filter((m) => m.role === "user").length === 0;
       await prisma.conversation.update({ where: { id: conversationId }, data: { model: model.id, ...(firstUser ? { title: content.slice(0, 60) || "New chat" } : {}) } });
     }
-  } catch (e: any) { releaseUsageReservation(usageEventId).catch(() => {}); refundCredits(ws.id, creditsHeld).catch(() => {}); releaseDailySpend(ws.id, estMicros).catch(() => {}); cleanup(); return error(e.message || "Preparation failed", 500); }
+  } catch (e: any) { releaseDailySpend(ws.id, estMicros).catch(() => {}); cleanup(); return error(e.message || "Preparation failed", 500); }
 
   const docContext = buildDocContext(documents);
   let searchContext = "";
   if (webSearch) { const results = await searchWeb(content); if (results.length) searchContext = buildSearchContext(results); }
 
+  // Validate and price the complete payload, including stored/client history and system/search context.
+  const historyText = priorMessages.map((message) => typeof message.content === "string"
+    ? message.content
+    : message.content.map((part) => part.type === "text" ? part.text : "").join("\n")).join("\n");
+  const estimatedInput = estimateTokens([systemPrompt || "", searchContext, historyText, docContext, content].join("\n"));
+  const effectiveCtx = isTeeOrE2ee(privacyMode) ? contextTokens(model) : Math.min(contextTokens(model), contextTokens(fallbackModel));
+  if (estimatedInput + limits.maxOutputTokens > effectiveCtx) {
+    releaseDailySpend(ws.id, estMicros).catch(() => {});
+    cleanup();
+    return error(`Token budget (${(estimatedInput + limits.maxOutputTokens).toLocaleString()}) exceeds effective context (${effectiveCtx.toLocaleString()}).`, 413);
+  }
+
   if (!model.uncensored) {
     for (const input of [...priorMessages.map((m) => m.content), content, ...documents.map((d) => d.text)].filter(Boolean)) {
-      if (detectPromptInjection(String(input)).detected) { releaseUsageReservation(usageEventId).catch(() => {}); refundCredits(ws.id, creditsHeld).catch(() => {}); releaseDailySpend(ws.id, estMicros).catch(() => {}); cleanup(); return error("Content blocked", 400); }
+      if (detectPromptInjection(String(input)).detected) { releaseDailySpend(ws.id, estMicros).catch(() => {}); cleanup(); return error("Content blocked", 400); }
     }
   }
 
@@ -131,13 +138,30 @@ export async function POST(request: Request) {
 
   const history: ChatMessage[] = [...(effectiveSystemPrompt ? [{ role: "system" as const, content: effectiveSystemPrompt }] : []), ...priorMessages.map((m) => ({ role: m.role as ChatMessage["role"], content: m.content })), { role: "user", content: buildUserContent(content, images, docContext) }];
 
+  const shadowPricing = await estimateCatalogTextRequest(model.id, estimatedInput, limits.maxOutputTokens).catch(() => null);
+  const chargeCredits = Math.max(model.credits, shadowPricing ? creditsToReserve(shadowPricing.estimatedCostMicros) : 0);
+  const shadowReservation = shadowPricing ? await createBillingReservation({
+    workspaceId: ws.id,
+    provider: shadowPricing.provider,
+    model: model.id,
+    modality: "TEXT",
+    estimatedCostMicros: shadowPricing.estimatedCostMicros,
+    pricingVersion: shadowPricing.pricingVersion,
+    modeOverride: "shadow",
+    metadata: { legacyCreditsCharged: chargeCredits, inputTokensEstimated: estimatedInput, maxOutputTokens: limits.maxOutputTokens },
+  }).catch((billingError) => { console.error("shadow billing reservation failed:", billingError); return null; }) : null;
+
+  if (!(await reserveCredits(ws.id, chargeCredits))) { releaseDailySpend(ws.id, estMicros).catch(() => {}); cleanup(); return error("Insufficient credits", 402); }
+  creditsHeld = chargeCredits;
+  try { usageEventId = await createUsageEvent(ws.id, "chat", model.id, chargeCredits); } catch { refundCredits(ws.id, creditsHeld).catch(() => {}); creditsHeld = 0; releaseDailySpend(ws.id, estMicros).catch(() => {}); cleanup(); return error("Failed to record usage", 500); }
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       let full = "";
       let fetchWasInitiated = false; // set true as soon as fetch() is called — any failure after this is ambiguous
       let generationId: string | null = null;
-      let usageInfo: { tokens?: number; cost?: number } = {};
+      let usageInfo: { tokens?: number; inputTokens?: number; outputTokens?: number; cachedTokens?: number; cost?: number } = {};
       let finalAttemptId: string | null = null;
       let streamCompleted = false;
 
@@ -152,10 +176,11 @@ export async function POST(request: Request) {
           const attId = await createInferenceAttempt(usageEventId, 1, "phala", teeModel);
           finalAttemptId = attId;
           await markAttemptSent(attId);
+          if (shadowReservation) await markBillingSent(shadowReservation.id).catch(() => {});
           fetchWasInitiated = true;
           const result = await streamChatTo(teeModel, history, ep.baseUrl, ep.apiKey, { temperature, max_tokens: limits.maxOutputTokens });
           const reader = result.body.getReader(); const decoder = new TextDecoder(); let buffer = "";
-          while (true) { const { done, value } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split("\n"); buffer = lines.pop() || ""; for (const line of lines) { const trimmed = line.trim(); if (!trimmed.startsWith("data:")) continue; const data = trimmed.slice(5).trim(); if (data === "[DONE]") continue; try { const p = JSON.parse(data); if (p.choices?.[0]?.delta?.content) { full += p.choices[0].delta.content; controller.enqueue(encoder.encode(p.choices[0].delta.content)); } if (p.usage) usageInfo = { tokens: p.usage.total_tokens, cost: p.usage.cost }; if (p.id) generationId = p.id; } catch {} } }
+          while (true) { const { done, value } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split("\n"); buffer = lines.pop() || ""; for (const line of lines) { const trimmed = line.trim(); if (!trimmed.startsWith("data:")) continue; const data = trimmed.slice(5).trim(); if (data === "[DONE]") continue; try { const p = JSON.parse(data); if (p.choices?.[0]?.delta?.content) { full += p.choices[0].delta.content; controller.enqueue(encoder.encode(p.choices[0].delta.content)); } if (p.usage) usageInfo = { tokens: p.usage.total_tokens, inputTokens: p.usage.prompt_tokens, outputTokens: p.usage.completion_tokens, cachedTokens: p.usage.prompt_tokens_details?.cached_tokens, cost: p.usage.cost }; if (p.id) generationId = p.id; } catch {} } }
           await settleAttempt(attId, generationId, usageInfo.cost ? BigInt(Math.round(usageInfo.cost * 1_000_000)) : 0n, usageInfo.tokens ?? 0);
           streamCompleted = true;
         } else {
@@ -165,6 +190,7 @@ export async function POST(request: Request) {
           const attId1 = await createInferenceAttempt(usageEventId, attemptNumber, "openrouter", model.id);
           finalAttemptId = attId1;
           await markAttemptSent(attId1);
+          if (shadowReservation) await markBillingSent(shadowReservation.id).catch(() => {});
           fetchWasInitiated = true;
           let respBody: ReadableStream;
           try {
@@ -186,9 +212,9 @@ export async function POST(request: Request) {
           }
           // Stream response
           const reader = respBody.getReader(); const decoder = new TextDecoder(); let buffer = "";
-          while (true) { const { done, value } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split("\n"); buffer = lines.pop() || ""; for (const line of lines) { const trimmed = line.trim(); if (!trimmed.startsWith("data:")) continue; const data = trimmed.slice(5).trim(); if (data === "[DONE]") continue; try { const p = JSON.parse(data); if (p.choices?.[0]?.delta?.content) { full += p.choices[0].delta.content; controller.enqueue(encoder.encode(p.choices[0].delta.content)); } if (p.usage) usageInfo = { tokens: p.usage.total_tokens, cost: p.usage.cost }; if (p.id) generationId = p.id; } catch {} } }
+          while (true) { const { done, value } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split("\n"); buffer = lines.pop() || ""; for (const line of lines) { const trimmed = line.trim(); if (!trimmed.startsWith("data:")) continue; const data = trimmed.slice(5).trim(); if (data === "[DONE]") continue; try { const p = JSON.parse(data); if (p.choices?.[0]?.delta?.content) { full += p.choices[0].delta.content; controller.enqueue(encoder.encode(p.choices[0].delta.content)); } if (p.usage) usageInfo = { tokens: p.usage.total_tokens, inputTokens: p.usage.prompt_tokens, outputTokens: p.usage.completion_tokens, cachedTokens: p.usage.prompt_tokens_details?.cached_tokens, cost: p.usage.cost }; if (p.id) generationId = p.id; } catch {} } }
           // Final parse attempt
-          if (!usageInfo.tokens && buffer.trim().startsWith("data:")) { try { const p = JSON.parse(buffer.trim().slice(5)); if (p.usage) usageInfo = { tokens: p.usage.total_tokens, cost: p.usage.cost }; } catch {} }
+          if (!usageInfo.tokens && buffer.trim().startsWith("data:")) { try { const p = JSON.parse(buffer.trim().slice(5)); if (p.usage) usageInfo = { tokens: p.usage.total_tokens, inputTokens: p.usage.prompt_tokens, outputTokens: p.usage.completion_tokens, cachedTokens: p.usage.prompt_tokens_details?.cached_tokens, cost: p.usage.cost }; } catch {} }
           await settleAttempt(finalAttemptId!, generationId, usageInfo.cost ? BigInt(Math.round(usageInfo.cost * 1_000_000)) : 0n, usageInfo.tokens ?? 0);
           streamCompleted = true;
         }
@@ -197,10 +223,12 @@ export async function POST(request: Request) {
         if (fetchWasInitiated && finalAttemptId) {
           await markAttemptReconciliationRequired(finalAttemptId, generationId, e.message);
           releaseUsageReservation(usageEventId).catch(() => {}); // release the RESERVED event; attempt holds reconciliation
+          if (shadowReservation) requireBillingReconciliation(shadowReservation.id, generationId || undefined).catch(() => {});
         } else {
           // Failed before fetch() → safe to release
           await releaseUsageReservation(usageEventId).catch(() => {});
           if (finalAttemptId) await markAttemptFailed(finalAttemptId, e.message);
+          if (shadowReservation) releaseBillingReservation(shadowReservation.id, true).catch(() => {});
         }
         const msg = `\n\n[error] ${e.message || "stream failed"}`;
         full += msg; controller.enqueue(encoder.encode(msg));
@@ -214,8 +242,38 @@ export async function POST(request: Request) {
         }
 
         if (streamCompleted) {
-          await recordUsageSettled(usageEventId, ws.id, model.id, model.credits, { tokens: usageInfo.tokens, cost: usageInfo.cost, generationId: generationId ?? undefined }).catch(() => {});
-          creditsHeld = 0;
+          const actualCostMicros = usdToMicros(actualCost);
+          const actualCredits = creditsForCost(actualCostMicros);
+          const settledCredits = Math.max(model.credits, actualCredits);
+          if (settledCredits > creditsHeld) {
+            const additional = settledCredits - creditsHeld;
+            if (await chargeCreditsAdditional(ws.id, additional)) {
+              await recordUsageSettled(usageEventId, ws.id, model.id, settledCredits, { tokens: usageInfo.tokens, cost: usageInfo.cost, generationId: generationId ?? undefined }).catch(() => {});
+              creditsHeld = 0;
+            } else {
+              // Actual cost exceeded the reserve and the workspace cannot cover the difference.
+              if (finalAttemptId) await markAttemptReconciliationRequired(finalAttemptId, generationId, "insufficient credits for actual usage").catch(() => {});
+              if (shadowReservation) await requireBillingReconciliation(shadowReservation.id, generationId || undefined).catch(() => {});
+              creditsHeld = 0;
+            }
+          } else {
+            const refundAmount = creditsHeld - settledCredits;
+            if (refundAmount > 0) await refundCredits(ws.id, refundAmount).catch(() => {});
+            await recordUsageSettled(usageEventId, ws.id, model.id, settledCredits, { tokens: usageInfo.tokens, cost: usageInfo.cost, generationId: generationId ?? undefined }).catch(() => {});
+            creditsHeld = 0;
+          }
+          if (shadowReservation) {
+            const providerCostMicros = usdToMicros(actualCost);
+            const providerFeeMicros = shadowPricing?.provider === "openrouter" ? (providerCostMicros * 55n + 999n) / 1000n : 0n;
+            settleBillingReservation(shadowReservation.id, {
+              providerRequestId: generationId || undefined,
+              providerCostMicros,
+              providerFeeMicros,
+              inputTokens: usageInfo.inputTokens,
+              outputTokens: usageInfo.outputTokens,
+              cachedTokens: usageInfo.cachedTokens,
+            }).catch((billingError) => console.error("shadow billing settlement failed:", billingError));
+          }
         } else if (!fetchWasInitiated) {
           refundCredits(ws.id, creditsHeld).catch(() => {});
           creditsHeld = 0;

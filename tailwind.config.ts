@@ -40,7 +40,7 @@ export default {
         sidebarTextActive: v("bg"),
       },
       fontFamily: {
-        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        sans: ["Helvetica Neue", "Helvetica", "Arial", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
       },
       fontSize: {
         display: ["48px", { lineHeight: "1.1", fontWeight: "500", letterSpacing: "0" }],

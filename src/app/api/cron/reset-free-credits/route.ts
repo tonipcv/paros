@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { PLANS } from "@/lib/models";
 import { timingSafeEqual, createHash } from "node:crypto";
+import { resetFreeMonthlyGrant } from "@/lib/credit-grants";
 
 export const runtime = "nodejs";
 
@@ -22,12 +23,15 @@ export async function GET(request: Request) {
   const freePlan = PLANS.find((p) => p.id === "FREE");
   const baseCredits = freePlan?.credits ?? 10;
 
-  const result = await prisma.workspace.updateMany({
-    where: { plan: "FREE" },
-    data: { credits: baseCredits },
-  });
+  const workspaces = await prisma.workspace.findMany({ where: { plan: "FREE" }, select: { id: true } });
+  const period = new Date().toISOString().slice(0, 7);
+  let reset = 0;
+  for (const workspace of workspaces) {
+    const result = await resetFreeMonthlyGrant(workspace.id, baseCredits, period);
+    if (result.reset) reset += 1;
+  }
 
-  return new Response(JSON.stringify({ reset: result.count, credits: baseCredits }), {
+  return new Response(JSON.stringify({ reset, credits: baseCredits }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });

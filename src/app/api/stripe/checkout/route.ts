@@ -18,14 +18,24 @@ function checkOrigin(request: Request): boolean {
   }
 }
 
-function validateBody(body: unknown): { plan: string; billingCycle: BillingCycle } | null {
+function validateBody(body: unknown): { plan: string; billingCycle: BillingCycle; utm?: Record<string, string> } | null {
   if (!body || typeof body !== "object") return null;
-  const value = body as { plan?: unknown; billingCycle?: unknown };
+  const value = body as { plan?: unknown; billingCycle?: unknown; utm?: unknown };
   if (typeof value.plan !== "string") return null;
   const plan = PLANS.find((p) => p.id === value.plan && p.priceEnv);
   if (!plan) return null;
   const billingCycle: BillingCycle = value.billingCycle === "yearly" ? "yearly" : "monthly";
-  return { plan: plan.id, billingCycle };
+  let utm: Record<string, string> | undefined;
+  if (value.utm && typeof value.utm === "object") {
+    const raw = value.utm as Record<string, unknown>;
+    const allowed = ["source", "medium", "campaign", "term", "content"];
+    const clean: Record<string, string> = {};
+    for (const key of allowed) {
+      if (typeof raw[key] === "string" && raw[key]) clean[key] = String(raw[key]).slice(0, 200);
+    }
+    if (Object.keys(clean).length > 0) utm = clean;
+  }
+  return { plan: plan.id, billingCycle, utm };
 }
 
 export async function POST(request: Request) {
@@ -63,7 +73,7 @@ export async function POST(request: Request) {
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
       customer_email: user.email,
-      metadata: { workspaceId: ws.id, plan: plan.id, billingCycle: parsed.billingCycle, priceId },
+      metadata: { workspaceId: ws.id, plan: plan.id, billingCycle: parsed.billingCycle, priceId, ...(parsed.utm ?? {}) },
       success_url: `${appUrl}/billing?success=1`,
       cancel_url: `${appUrl}/billing?canceled=1`,
     });

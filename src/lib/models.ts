@@ -11,6 +11,8 @@ export type ChatModel = {
   maxOutput?: number;
 };
 
+export { parseTokenCount } from "./unit-economics";
+
 export const CHAT_MODELS: ChatModel[] = [
   {
     id: "meta-llama/llama-3.3-70b-instruct",
@@ -380,7 +382,7 @@ const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxChatsPerDay: 30,
     maxImagesPerDay: 3,
     dailySpendLimitUsd: 0.10,
-    maxConcurrency: 1,
+    maxConcurrency: 5,
   },
   STARTER: {
     maxInputChars: 64000,
@@ -443,12 +445,13 @@ export type ImageModel = {
   credits: number;
   uncensored?: boolean;
   provider?: "openrouter" | "fal";
+  supportsEditing?: boolean;
 };
 
 export const IMAGE_MODELS: ImageModel[] = [
-  { id: "google/gemini-2.5-flash-image", name: "Gemini 2.5 Flash Image", credits: 5, provider: "openrouter" },
-  { id: "google/gemini-3-pro-image", name: "Gemini 3 Pro Image", credits: 10, provider: "openrouter" },
-  { id: "openai/gpt-5-image-mini", name: "GPT Image Mini", credits: 8, provider: "openrouter" },
+  { id: "google/gemini-2.5-flash-image", name: "Gemini 2.5 Flash Image", credits: 5, provider: "openrouter", supportsEditing: true },
+  { id: "google/gemini-3-pro-image", name: "Gemini 3 Pro Image", credits: 10, provider: "openrouter", supportsEditing: true },
+  { id: "openai/gpt-5-image-mini", name: "GPT Image Mini", credits: 8, provider: "openrouter", supportsEditing: true },
   { id: "black-forest-labs/flux-1.1-pro", name: "Flux 1.1 Pro", credits: 6, uncensored: true, provider: "openrouter" },
   { id: "stabilityai/stable-diffusion-3.5-large", name: "SD 3.5 Large", credits: 4, uncensored: true, provider: "openrouter" },
   { id: "fal-ai/flux/dev", name: "Flux Dev", credits: 4, uncensored: true, provider: "fal" },

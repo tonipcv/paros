@@ -5,7 +5,7 @@ import { ArchitectureFlow } from "@/components/architecture-flow";
 import { Reveal } from "@/components/reveal";
 import { SiteHeader } from "@/components/site-header";
 
-const brandName = "NotOpen";
+const brandName = "KRX";
 
 export const metadata: Metadata = {
   title: "How it works",

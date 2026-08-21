@@ -1118,7 +1118,7 @@ export default function ChatPage() {
                   }
                 }}
                 rows={1}
-                placeholder={recording ? "Listening..." : isImageModel ? "Describe the image you want to generate..." : "Message NotOpen..."}
+                placeholder={recording ? "Listening..." : isImageModel ? "Describe the image you want to generate..." : "Message KRX..."}
                 className="max-h-44 min-h-[28px] w-full resize-none bg-transparent px-2 py-2 text-[15px] text-primary outline-none placeholder:text-tertiary"
               />
               <div className="flex items-center justify-between px-1">

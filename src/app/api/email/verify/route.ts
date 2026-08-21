@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { hashToken } from "@/lib/auth";
 import { appUrl } from "@/lib/email";
 import { rateLimitShared, clientIp } from "@/lib/rate-limit";
+import { notifySignupVerified } from "@/lib/telegram";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -22,6 +23,12 @@ export async function GET(request: Request) {
     const record = await prisma.emailVerificationToken.findUnique({ where: { tokenHash: hashToken(token) } });
     if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) return fail;
 
+    const user = await prisma.user.findUnique({
+      where: { id: record.userId },
+      select: { email: true, emailVerified: true },
+    });
+    if (!user) return fail;
+
     await prisma.$transaction([
       prisma.user.update({ where: { id: record.userId }, data: { emailVerified: new Date() } }),
       prisma.emailVerificationToken.updateMany({
@@ -29,6 +36,11 @@ export async function GET(request: Request) {
         data: { usedAt: new Date() },
       }),
     ]);
+
+    // First confirmation only — resends must not duplicate the notification.
+    if (!user.emailVerified) {
+      await notifySignupVerified(user.email).catch((e) => console.error("telegram notify failed:", e));
+    }
     return NextResponse.redirect(`${base}/verify?status=success`);
   } catch (e) {
     console.error("email verify error:", e);

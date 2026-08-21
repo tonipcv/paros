@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 
-const brandName = "NotOpen";
+const brandName = "KRX";
 
 export const metadata: Metadata = {
  title: "Google Patched AI Chatbot Flaw That Could Have Exposed Customer Conversations",

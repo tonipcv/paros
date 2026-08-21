@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import { annualPlanPrice, formatCredits, formatPrice, paidPlans, type BillingCycle } from "@/lib/models";
+import { captureUtm, utmQueryString } from "@/lib/utm";
 
 const planMarketing: Record<string, { desc: string; cta: string; popular?: boolean; features: (credits: number) => string[] }> = {
   STARTER: {
@@ -55,6 +56,10 @@ export function LandingPricing() {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [loading, setLoading] = useState<string | null>(null);
 
+  useEffect(() => {
+    captureUtm();
+  }, []);
+
   async function checkout(plan: string) {
     const key = `${plan}-${cycle}`;
     setLoading(key);
@@ -62,18 +67,18 @@ export function LandingPricing() {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, billingCycle: cycle }),
+        body: JSON.stringify({ plan, billingCycle: cycle, utm: utmQueryString().slice(1) }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 401) {
-        window.location.href = `/login?plan=${plan}&billingCycle=${cycle}`;
+        window.location.href = `/login?plan=${plan}&billingCycle=${cycle}${utmQueryString()}`;
         return;
       }
       if (!res.ok) throw new Error(data.error || "Checkout unavailable");
       window.location.href = data.url;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Checkout unavailable";
-      window.location.href = `/login?plan=${plan}&billingCycle=${cycle}&error=${encodeURIComponent(message)}`;
+      window.location.href = `/login?plan=${plan}&billingCycle=${cycle}&error=${encodeURIComponent(message)}${utmQueryString()}`;
     } finally {
       setLoading(null);
     }

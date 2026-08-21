@@ -22,7 +22,7 @@ SEGMENTS = [
     ("Enterprises exposed", "Customer data, strategy documents, and internal materials were all at risk of exposure."),
     ("Fixed February", "OpenAI fixed the vulnerability on February 20, 2026, but the lesson remains for all users."),
     ("Not secure by default", "AI tools should not be assumed secure by default. Independent security is essential."),
-    ("NotOpen protects", "NotOpen encrypts your conversations end to end. No DNS tunnel can leak what is already encrypted."),
+    ("KRX protects", "KRX encrypts your conversations end to end. No DNS tunnel can leak what is already encrypted."),
 ]
 
 # Images needed (16 total, prefix p, NONE from previous videos):

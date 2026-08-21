@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 
-const brandName = "NotOpen";
+const brandName = "KRX";
 
 export const metadata: Metadata = {
  title: "SpaceXAI's Grok Build Was Uploading Users' Entire Codebase to Cloud Storage",

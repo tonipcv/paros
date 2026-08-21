@@ -2,8 +2,8 @@ import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
 
-const SESSION_COOKIE = "nebula_session";
-const HOST_SESSION_COOKIE = "__Host-nebula_session";
+const SESSION_COOKIE = "krx_session";
+const HOST_SESSION_COOKIE = "__Host-krx_session";
 const MAX_AGE = 60 * 60 * 24 * 30;
 
 export function hashPassword(value: string) {
@@ -40,7 +40,7 @@ export async function createSession(userId: string) {
   const token = randomUUID();
   await prisma.session.deleteMany({ where: { expiresAt: { lt: new Date() } } });
   await prisma.session.create({
-    data: { token, userId, expiresAt: new Date(Date.now() + MAX_AGE * 1000) },
+    data: { token: hashToken(token), userId, expiresAt: new Date(Date.now() + MAX_AGE * 1000) },
   });
   return token;
 }
@@ -70,7 +70,7 @@ export async function currentUser() {
   const token = await getSessionToken();
   if (!token) return null;
   const session = await prisma.session.findUnique({
-    where: { token },
+    where: { token: hashToken(token) },
     include: { user: { include: { workspace: true } } },
   });
   if (!session || session.expiresAt.getTime() < Date.now()) return null;
@@ -81,6 +81,12 @@ export async function requireUser() {
   const user = await currentUser();
   if (!user) throw new Error("Authentication required");
   return user;
+}
+
+// Credit-consuming routes require a verified email unless the account is a
+// guest (throwaway @guest.local accounts can never unlock paid-grade limits).
+export function emailVerifiedOrGuest(user: { email: string; emailVerified: Date | null }) {
+  return Boolean(user.emailVerified) || user.email.toLowerCase().endsWith("@guest.local");
 }
 
 export type Role = "USER" | "ADMIN" | "SUPER_ADMIN";
@@ -99,7 +105,7 @@ export async function requireAdmin(minRole: Role = "ADMIN"): Promise<ReturnType<
 }
 
 export async function destroySession(token: string) {
-  await prisma.session.deleteMany({ where: { token } });
+  await prisma.session.deleteMany({ where: { token: hashToken(token) } });
 }
 
 export function hashApiKey(key: string) {

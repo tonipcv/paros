@@ -6,7 +6,10 @@ export type ApiAuthResult =
   | { ok: true; workspace: { id: string; credits: number; plan: string }; keyId: string }
   | { ok: false; status: number; message: string; retryAfter?: number };
 
-export async function authenticateApiKey(request: Request): Promise<ApiAuthResult> {
+export async function authenticateApiKey(
+  request: Request,
+  options: { applyRateLimit?: boolean; updateLastUsed?: boolean } = {}
+): Promise<ApiAuthResult> {
   const auth = request.headers.get("authorization") || "";
   const token = auth.replace(/^Bearer\s+/i, "").trim();
   if (!token.startsWith("nb-")) return { ok: false, status: 401, message: "Invalid API key" };
@@ -17,14 +20,18 @@ export async function authenticateApiKey(request: Request): Promise<ApiAuthResul
   });
   if (!key) return { ok: false, status: 401, message: "Invalid API key" };
 
-  const limit = await rateLimitShared(`key:${key.id}`, 60, 60);
-  if (!limit.ok) {
-    return { ok: false, status: 429, message: "Rate limit exceeded", retryAfter: limit.retryAfter };
+  if (options.applyRateLimit !== false) {
+    const limit = await rateLimitShared(`key:${key.id}`, 60, 60);
+    if (!limit.ok) {
+      return { ok: false, status: 429, message: "Rate limit exceeded", retryAfter: limit.retryAfter };
+    }
   }
 
-  await prisma.apiKey
-    .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
-    .catch((e) => console.error("API key lastUsedAt update failed:", e));
+  if (options.updateLastUsed !== false) {
+    await prisma.apiKey
+      .update({ where: { id: key.id }, data: { lastUsedAt: new Date() } })
+      .catch((e) => console.error("API key lastUsedAt update failed:", e));
+  }
   return {
     ok: true,
     keyId: key.id,

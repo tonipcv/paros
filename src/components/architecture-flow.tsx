@@ -13,7 +13,7 @@ const nodes = [
   {
     icon: ShieldCheck,
     step: "Step 2",
-    title: "NotOpen router",
+    title: "KRX router",
     caption: "A zero-log relay. It selects the best route for your privacy tier and never sees or stores your content.",
   },
   {

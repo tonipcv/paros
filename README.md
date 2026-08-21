@@ -1,4 +1,4 @@
-# HTPS.io
+# KRX
 
 Private, uncensored, multi-model generative AI. A privacy-first alternative to mainstream AI apps: chat with many models, generate and edit images, use your voice, and attach documents — with conversations that stay on your device by default.
 
@@ -16,6 +16,7 @@ Private, uncensored, multi-model generative AI. A privacy-first alternative to m
 - **Image Studio** — text-to-image and image editing, stored on Cloudflare R2.
 - **Characters** — custom AI personalities.
 - **OpenAI-compatible API** — drop-in `/api/v1` with API keys, rate limiting and docs.
+- **Scalable model catalog** — database-backed capabilities, pricing, aliases, multi-provider routes and automated discovery for 600+ models.
 - **Billing** — Stripe subscriptions with a credits system.
 
 ## Privacy modes
@@ -70,6 +71,9 @@ See `.env.example` for all variables. Core: `DATABASE_URL`, `OPENROUTER_API_KEY`
 - `npm run build` / `npm start`
 - `npm run typecheck` / `npm run lint`
 - `npm run db:push` / `npm run db:studio` / `npm run db:seed`
+
+See [MODEL_CATALOG.md](./MODEL_CATALOG.md) for catalog synchronization, pagination, provider routing and deployment.
+See [MULTIMODAL_PARITY_PLAN.md](./MULTIMODAL_PARITY_PLAN.md) for the researched video, audio, embeddings, image editing, upscale and music delivery program.
 
 ## License
 
