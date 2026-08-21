@@ -31,3 +31,8 @@ public/videos/
 # local test artifacts
 .stripe-webhook-local-cleanup.json
 .env*
+
+# media pesada (nao versionar)
+public/videos/
+public/reels-pack/
+__pycache__/
