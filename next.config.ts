@@ -26,7 +26,6 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  eslint: { ignoreDuringBuilds: true },
   poweredByHeader: false,
   // STT/upload routes accept audio up to 25 MB; Next's default 10 MB body limit
   // would otherwise truncate FormData and fail every large transcription.
